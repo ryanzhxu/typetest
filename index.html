@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personality</title>
+  <meta name="description" content="A four-letter test that tells you which second type is living in your result.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="brand">Personality</p>
+    <button type="button" id="btn-nav-sixteen" class="link-btn">See all sixteen</button>
+  </header>
+
+  <main>
+    <section id="view-intro" class="view">
+      <div class="intro-card">
+        <p class="eyebrow">A four-letter personality test</p>
+        <h1>Personality</h1>
+        <p class="lede">Thirty-six questions on a seven-point slider. If two types are genuinely close for you, we say so instead of guessing.</p>
+        <button type="button" id="btn-start" class="btn btn-primary">Start</button>
+        <p class="intro-note">No account. Nothing saved. Nothing sent anywhere.</p>
+      </div>
+    </section>
+
+    <section id="view-question" class="view" hidden>
+      <div class="question-card">
+        <p id="q-progress" class="progress-text" aria-live="polite"></p>
+        <div class="statement-pair">
+          <p id="q-statement-a" class="statement statement-a"></p>
+          <p id="q-statement-b" class="statement statement-b"></p>
+        </div>
+        <input type="range" id="q-slider" min="1" max="7" step="1" value="4"
+               aria-label="Move toward whichever statement fits better">
+        <p id="q-feedback" class="feedback-text" aria-live="polite"></p>
+        <div class="question-actions">
+          <button type="button" id="btn-skip" class="btn btn-ghost">Neither, really</button>
+          <button type="button" id="btn-next" class="btn btn-primary">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-reveal" class="view" hidden>
+      <div class="reveal-card">
+        <p id="reveal-code" class="reveal-code"></p>
+        <h2 id="reveal-name" class="reveal-name"></h2>
+        <p id="reveal-line" class="reveal-line"></p>
+
+        <div id="second-self-card" class="second-self-card" hidden>
+          <p class="second-self-kicker">There is a</p>
+          <h3 id="second-self-name"></h3>
+          <p class="second-self-kicker">in you too.</p>
+          <div class="blend-bar">
+            <span id="blend-peach" class="blend-segment blend-peach"></span>
+            <span id="blend-lilac" class="blend-segment blend-lilac"></span>
+          </div>
+          <div class="second-self-actions">
+            <button type="button" id="btn-settle" class="btn btn-secondary">Settle it</button>
+            <button type="button" id="btn-keep-both" class="btn btn-primary">Keep both</button>
+          </div>
+        </div>
+
+        <button type="button" id="btn-continue" class="btn btn-primary" hidden>Continue</button>
+      </div>
+    </section>
+
+    <section id="view-type" class="view" hidden>
+      <div class="type-card">
+        <button type="button" id="btn-back-gallery" class="link-btn" hidden>Back to the sixteen</button>
+
+        <p id="type-code" class="type-code"></p>
+        <h2 id="type-name" class="type-name"></h2>
+
+        <p id="type-opening" class="type-paragraph"></p>
+        <p id="type-best" class="type-paragraph"></p>
+        <p id="type-undone" class="type-paragraph"></p>
+
+        <ul id="type-chips" class="chip-list"></ul>
+
+        <div class="often-block">
+          <p class="often-label">Often typed this way</p>
+          <ul id="type-often" class="pill-list"></ul>
+          <p class="asterisk-paragraph"><span aria-hidden="true">* </span>These are guesses, and we would rather say so. Not one of these people has sat the official test and published the result. Every celebrity list on the internet, ours included, is fans voting on strangers. Enjoy it as that.</p>
+        </div>
+
+        <div id="share-block" class="share-block">
+          <p class="share-label">Save a card with your result.</p>
+          <button type="button" id="btn-share" class="btn btn-secondary">Share your card</button>
+        </div>
+
+        <button type="button" id="btn-restart" class="btn btn-primary">Start over</button>
+      </div>
+    </section>
+
+    <section id="view-sixteen" class="view" hidden>
+      <div class="gallery-header">
+        <button type="button" id="btn-back-flow" class="link-btn">Back</button>
+        <h2>All sixteen</h2>
+        <p>No colour by type here. Names and words carry it.</p>
+      </div>
+      <ul id="gallery-grid" class="gallery-grid"></ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Not affiliated with or endorsed by The Myers-Briggs Company.</p>
+  </footer>
+
+  <script defer src="js/ns.js"></script>
+  <script defer src="js/score.js"></script>
+  <script defer src="js/items.js"></script>
+  <script defer src="js/types.js"></script>
+  <script defer src="js/flow.js"></script>
+  <script defer src="js/share.js"></script>
+  <script defer src="js/render.js"></script>
+  <script defer src="js/app.js"></script>
+</body>
+</html>
