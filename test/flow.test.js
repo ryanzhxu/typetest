@@ -8,6 +8,7 @@ require("../js/items.js");
 require("../js/flow.js");
 const flowMod = globalThis.SG.flow;
 const items = globalThis.SG.items;
+const score = globalThis.SG.score;
 
 /* Answer every question with the same value. */
 function runCore(f, value) {
@@ -107,24 +108,29 @@ test("keeping both preserves the second code and opens the type page", () => {
 });
 
 test("a skip records a missing answer, it does not silently drop the item", () => {
-  /* Asserting only that the index advanced would pass even if skip() never
-     touched `responses` at all. Assert the consequence instead: a skipped
-     item must widen that axis's band and leave every other axis alone. */
+  /* Comparing a skipped run against a fully-answered run is NOT enough. The
+     band widens merely because n fell from 9 to 8 via se = sd/sqrt(n), so a
+     skip() that dropped the item entirely still passes such a test (12.13 vs
+     a baseline 11.43). Pin the exact half-width instead: it is reachable only
+     if the null was recorded AND SKIP_PENALTY was applied to it. */
+  const f = flowMod.create();
+  f.start();
+  let done = false;
+  for (let i = 0; i < items.core.length; i += 1) {
+    if (f.state().item.axis === "EI" && !done) { f.skip(); done = true; }
+    else { f.answer(7); }
+  }
+  const r = f.result();
+
+  const expected = 50 * 1.96 * (score.SD_FLOOR / Math.sqrt(8)) + score.SKIP_PENALTY;
+  assert.ok(Math.abs(r.axes.EI.half - expected) < 0.01,
+    "expected ~" + expected.toFixed(2) + ", got " + r.axes.EI.half +
+    "; a dropped skip would give ~" + (expected - score.SKIP_PENALTY).toFixed(2));
+
   const full = flowMod.create();
   full.start();
   for (let i = 0; i < items.core.length; i += 1) { full.answer(7); }
-
-  const withSkip = flowMod.create();
-  withSkip.start();
-  let done = false;
-  for (let i = 0; i < items.core.length; i += 1) {
-    if (withSkip.state().item.axis === "EI" && !done) { withSkip.skip(); done = true; }
-    else { withSkip.answer(7); }
-  }
-
-  assert.ok(withSkip.result().axes.EI.half > full.result().axes.EI.half,
-    "a skip must widen its own axis");
-  assert.strictEqual(withSkip.result().axes.SN.half, full.result().axes.SN.half,
+  assert.strictEqual(r.axes.SN.half, full.result().axes.SN.half,
     "a skip must not touch another axis");
 });
 
