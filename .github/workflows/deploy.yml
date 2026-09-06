@@ -10,6 +10,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
       - run: npm test
       - run: npx -y wrangler@latest pages deploy . --project-name=personality --branch=main
         env:

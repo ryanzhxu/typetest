@@ -5,5 +5,8 @@
   "description": "Personality. A four-letter test that tells you which second type is living in your result.",
   "scripts": {
     "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
   }
 }
