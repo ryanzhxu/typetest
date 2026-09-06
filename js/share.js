@@ -114,9 +114,15 @@
     cursorY += lines.length * lineHeight + 70;
 
     if (result.closeAxis) {
-      var est = Math.round(result.axes[result.closeAxis].est);
+      var axis = result.axes[result.closeAxis];
+      /* Peach is the user's own letter. est measures distance toward pole
+         1, so est only IS the user's share when letterIndex is 1; when
+         letterIndex is 0 the user's own letter is pole 0 and their true
+         share is the other end, 100 - est. Do not simplify this back to
+         est alone. */
+      var yourShare = Math.round(axis.letterIndex === 1 ? axis.est : 100 - axis.est);
       var barH = 26;
-      var splitX = MAX_W * (est / 100);
+      var splitX = MAX_W * (yourShare / 100);
       ctx.fillStyle = PEACH;
       ctx.fillRect(MARGIN, cursorY, splitX, barH);
       ctx.fillStyle = LILAC;

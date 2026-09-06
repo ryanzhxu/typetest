@@ -157,10 +157,16 @@
 
       if (result.closeAxis) {
         var secondT = SG.types.byCode[result.secondCode];
-        var est = Math.round(result.axes[result.closeAxis].est);
+        var axis = result.axes[result.closeAxis];
+        /* Peach is the user's own letter. est measures distance toward pole
+           1, so est only IS the user's share when letterIndex is 1; when
+           letterIndex is 0 the user's own letter is pole 0 and their true
+           share is the other end, 100 - est. Do not simplify this back to
+           est alone. */
+        var yourShare = Math.round(axis.letterIndex === 1 ? axis.est : 100 - axis.est);
         el.secondSelfName.textContent = secondT.name;
-        el.blendPeach.style.width = est + "%";
-        el.blendLilac.style.width = (100 - est) + "%";
+        el.blendPeach.style.width = yourShare + "%";
+        el.blendLilac.style.width = (100 - yourShare) + "%";
         el.secondSelfCard.hidden = false;
         el.btnContinue.hidden = true;
       } else {
