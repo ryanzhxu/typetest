@@ -106,11 +106,61 @@ test("keeping both preserves the second code and opens the type page", () => {
   assert.strictEqual(f.result().secondCode, before);
 });
 
-test("skips are recorded and still advance", () => {
+test("a skip records a missing answer, it does not silently drop the item", () => {
+  /* Asserting only that the index advanced would pass even if skip() never
+     touched `responses` at all. Assert the consequence instead: a skipped
+     item must widen that axis's band and leave every other axis alone. */
+  const full = flowMod.create();
+  full.start();
+  for (let i = 0; i < items.core.length; i += 1) { full.answer(7); }
+
+  const withSkip = flowMod.create();
+  withSkip.start();
+  let done = false;
+  for (let i = 0; i < items.core.length; i += 1) {
+    if (withSkip.state().item.axis === "EI" && !done) { withSkip.skip(); done = true; }
+    else { withSkip.answer(7); }
+  }
+
+  assert.ok(withSkip.result().axes.EI.half > full.result().axes.EI.half,
+    "a skip must widen its own axis");
+  assert.strictEqual(withSkip.result().axes.SN.half, full.result().axes.SN.half,
+    "a skip must not touch another axis");
+});
+
+test("when two axes are close, the one nearer the midline is chosen", () => {
+  /* No other test ever makes two axes close at once, so nearest-50 selection
+     is otherwise unverified. TF sits exactly on 50, SN is close but offset. */
   const f = flowMod.create();
   f.start();
-  f.skip();
-  assert.strictEqual(f.state().index, 1);
+  const seen = { EI: 0, SN: 0, TF: 0, JP: 0 };
+  for (let i = 0; i < items.core.length; i += 1) {
+    const axis = f.state().item.axis;
+    seen[axis] += 1;
+    if (axis === "TF") { f.answer(4); }
+    else if (axis === "SN") { f.answer(seen.SN <= 5 ? 4 : 5); }
+    else { f.answer(7); }
+  }
+  const r = f.result();
+  assert.ok(r.axes.TF.close && r.axes.SN.close, "both axes must be close here");
+  assert.ok(Math.abs(r.axes.SN.est - 50) > Math.abs(r.axes.TF.est - 50),
+    "SN must be the further of the two");
+  assert.strictEqual(r.closeAxis, "TF");
+});
+
+test("an exact tie resolves deterministically to the earlier axis", () => {
+  /* Guards the strict `<` in the selection loop. With `<=` the later axis
+     would win and every other test would still pass. */
+  const f = flowMod.create();
+  f.start();
+  for (let i = 0; i < items.core.length; i += 1) {
+    const axis = f.state().item.axis;
+    f.answer(axis === "EI" || axis === "JP" ? 4 : 7);
+  }
+  const r = f.result();
+  assert.ok(r.axes.EI.close && r.axes.JP.close, "both axes must be close here");
+  assert.strictEqual(r.axes.EI.est, r.axes.JP.est, "this must be an exact tie");
+  assert.strictEqual(r.closeAxis, "EI", "ties go to the earlier entry in AXES");
 });
 
 test("reset returns to the intro and clears the result", () => {
