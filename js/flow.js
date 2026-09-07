@@ -86,6 +86,23 @@
       },
       answer: function (value) { record(value); },
       skip: function () { record(null); },
+      /* Step back one question and hand the answer being undone to the caller,
+         so the view can show it selected again. queue[index] after the
+         decrement is the item whose answer this is, and its axis array holds
+         that answer last, because pushes happen in queue order. Returns null
+         when there is nothing to undo, and for an item that was skipped.
+
+         A tiebreak run starts a fresh queue at index 0, so canBack is false on
+         its first question. That is deliberate: stepping from a tiebreak back
+         into the finished core run would pop an answer the result was already
+         computed from. */
+      back: function () {
+        if (view !== "question" || index === 0) { return null; }
+        index -= 1;
+        var removed = responses[queue[index].axis].pop();
+        return removed === undefined ? null : removed;
+      },
+      canBack: function () { return view === "question" && index > 0; },
       settle: function () {
         if (!result || !result.closeAxis) { return; }
         var axis = result.closeAxis;

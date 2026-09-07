@@ -176,3 +176,94 @@ test("reset returns to the intro and clears the result", () => {
   assert.strictEqual(f.state().view, "intro");
   assert.strictEqual(f.result(), null);
 });
+
+test("back steps to the previous question and hands over the answer it undid", () => {
+  const f = flowMod.create();
+  f.start();
+  const first = f.state().item;
+  f.answer(6);
+  assert.strictEqual(f.state().index, 1);
+
+  assert.strictEqual(f.back(), 6, "back must return the answer it removed");
+  assert.strictEqual(f.state().index, 0);
+  assert.strictEqual(f.state().item, first, "back must land on the same question");
+});
+
+test("back on a skipped question returns null, not undefined", () => {
+  const f = flowMod.create();
+  f.start();
+  f.skip();
+  assert.strictEqual(f.back(), null);
+});
+
+test("there is nothing behind the first question", () => {
+  const f = flowMod.create();
+  f.start();
+  assert.strictEqual(f.canBack(), false);
+  assert.strictEqual(f.back(), null);
+  assert.strictEqual(f.state().index, 0, "a refused back must not move the index");
+});
+
+test("an answer that was taken back does not reach the score", () => {
+  /* The whole point of back: the discarded answer must leave no trace. A run
+     that answers 1, takes it back and answers 7 must land exactly where a run
+     that only ever answered 7 lands. */
+  const undone = flowMod.create();
+  undone.start();
+  for (let i = 0; i < items.core.length - 1; i += 1) {
+    undone.answer(1);
+    undone.back();
+    undone.answer(7);
+  }
+  undone.answer(7);
+
+  const clean = flowMod.create();
+  runCore(clean, 7);
+
+  assert.strictEqual(undone.state().view, "reveal");
+  assert.deepStrictEqual(undone.result().axes, clean.result().axes);
+  assert.strictEqual(undone.result().code, clean.result().code);
+});
+
+test("back cannot walk out of a tiebreak into the finished core run", () => {
+  /* The core answers are what the result was computed from. Popping one from
+     inside a tiebreak would leave the two disagreeing. */
+  const f = flowMod.create();
+  runCoreCloseOn(f, "EI", 7);
+  assert.strictEqual(f.canSettle(), true);
+  f.settle();
+  assert.strictEqual(f.state().view, "question");
+  assert.strictEqual(f.canBack(), false, "the first tiebreak question has nothing behind it");
+  assert.strictEqual(f.back(), null);
+
+  f.answer(7);
+  assert.strictEqual(f.canBack(), true, "inside the tiebreak, back works normally");
+  assert.strictEqual(f.back(), 7);
+});
+
+test("back is refused outside the question view", () => {
+  const f = flowMod.create();
+  assert.strictEqual(f.canBack(), false, "on the intro");
+  runCore(f, 7);
+  assert.strictEqual(f.state().view, "reveal");
+  assert.strictEqual(f.canBack(), false, "on the reveal");
+  assert.strictEqual(f.back(), null);
+  assert.strictEqual(f.result().code, "INFP", "back must not disturb a finished result");
+});
+
+test("the last answer of a run is final, because it is what computes the result", () => {
+  /* Answering the final question moves straight to the reveal, and back is a
+     question-view move. Un-computing a finished result to reopen one answer
+     would mean the reveal could be entered and left with different numbers
+     behind it. The reader can still revise question thirty-six before
+     answering it, and start over afterwards. */
+  const f = flowMod.create();
+  f.start();
+  for (let i = 0; i < items.core.length - 1; i += 1) { f.answer(7); }
+  assert.strictEqual(f.canBack(), true, "the last question can still be revised before it is answered");
+
+  f.answer(1);
+  assert.strictEqual(f.state().view, "reveal");
+  assert.strictEqual(f.canBack(), false);
+  assert.strictEqual(f.back(), null);
+});

@@ -2,7 +2,7 @@
   "use strict";
   var SG = root.SG;
 
-  /* Responses are 1-7 on a slider between two poles, or null for
+  /* Responses are 1-7 across seven dots between two poles, or null for
      "neither, really". 1 is the first pole, 7 is the second. */
 
   var SD_FLOOR = 0.35;     /* on the -1..1 response scale */

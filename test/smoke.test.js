@@ -62,17 +62,27 @@ function assertNoLeakedNumbers(body) {
   assert.ok(!/margin/i.test(body), "the word margin leaked onto the page");
 }
 
-async function answerNeutral(page, count) {
+/* Choosing a dot advances on a timer. At the shipped 250ms a thirty-six
+   question run would sleep for nine seconds, in every test that takes one, so
+   the runs below set the delay to zero and one dedicated test checks that the
+   default delay is real. */
+async function instantAdvance(page) {
+  await page.evaluate(() => { window.SG.render.ADVANCE_MS = 0; });
+}
+
+async function answerDot(page, value, count) {
   for (let i = 0; i < count; i += 1) {
-    await page.click("#btn-next");
+    await page.click('#q-dots input[value="' + value + '"]');
   }
 }
 
+/* Dot 4 is "Both, equally": a real answer that lands dead centre, not a skip. */
+async function answerNeutral(page, count) {
+  await answerDot(page, 4, count);
+}
+
 async function answerDecisive(page, count) {
-  for (let i = 0; i < count; i += 1) {
-    await page.keyboard.press("7");
-    await page.click("#btn-next");
-  }
+  await answerDot(page, 7, count);
 }
 
 async function shareCardBlobInfo(page) {
@@ -102,6 +112,7 @@ test(
         };
       });
 
+      await instantAdvance(page);
       await page.click("#btn-start");
       await answerNeutral(page, 36);
       await page.waitForSelector("#view-reveal:not([hidden])");
@@ -153,6 +164,7 @@ test(
         };
       });
 
+      await instantAdvance(page);
       await page.click("#btn-start");
       await answerDecisive(page, 36);
       await page.waitForSelector("#view-reveal:not([hidden])");
@@ -282,6 +294,7 @@ test("landing on a type URL shows that type with no intro, and offers the test",
 
     assertNoLeakedNumbers(await page.textContent("body"));
 
+    await instantAdvance(page);
     await page.click("#btn-take-test");
     await page.waitForSelector("#view-question:not([hidden])");
     assert.strictEqual(new URL(page.url()).pathname, "/", "starting the test must return to the root URL");
@@ -350,6 +363,7 @@ test("finishing the test leaves the address bar at the result's own URL", { skip
     const errors = trackErrors(page);
     await page.goto(site.url + "/");
 
+    await instantAdvance(page);
     await page.click("#btn-start");
     await answerDecisive(page, 36);
     await page.waitForSelector("#view-reveal:not([hidden])");
@@ -438,6 +452,7 @@ test("the tab title travels with the URL", { skip: !chromium }, async () => {
     assert.strictEqual(new URL(page.url()).pathname, "/enfj");
     assert.strictEqual(await page.title(), "Warm Front (ENFJ)", "Back must restore the title, not only the view");
 
+    await instantAdvance(page);
     await page.click("#btn-take-test");
     await page.waitForSelector("#view-question:not([hidden])");
     assert.strictEqual(new URL(page.url()).pathname, "/");
@@ -470,6 +485,7 @@ test("returning to the intro puts the address bar back at the root", { skip: !ch
     const errors = trackErrors(page);
 
     await page.goto(site.url + "/");
+    await instantAdvance(page);
     await page.click("#btn-start");
     await answerDecisive(page, 36);
     await page.waitForSelector("#view-reveal:not([hidden])");
@@ -600,6 +616,188 @@ test("all sixteen gallery cards render at the same size", { skip: !chromium }, a
     );
     const widths = new Set(boxes.map((b) => b.w));
     assert.strictEqual(widths.size, 1, "cards differ in width: " + Array.from(widths).join(", "));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("the seven dots answer a question in one tap, and the progress bar tracks it", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/");
+    await instantAdvance(page);
+    await page.click("#btn-start");
+    await page.waitForSelector("#view-question:not([hidden])");
+
+    assert.strictEqual(await page.locator("#q-dots input").count(), 7, "seven dots, one per value");
+    assert.deepStrictEqual(
+      await page.locator("#q-dots input").evaluateAll((els) => els.map((e) => e.value)),
+      ["1", "2", "3", "4", "5", "6", "7"],
+      "the dots must carry the same 1-7 the score is written against"
+    );
+    assert.strictEqual(
+      await page.locator("#q-dots input:checked").count(), 0,
+      "nothing may be pre-selected: with no Next to press past, that would answer for the reader"
+    );
+
+    const first = await page.textContent("#q-statement-a");
+    assert.strictEqual(await page.textContent("#q-progress"), "Zero down, thirty-six to go");
+    assert.strictEqual(await page.locator("#q-progress-fill").evaluate((e) => e.style.width), "0%");
+
+    /* One tap. No second press, no drag. */
+    await page.click('#q-dots input[value="2"]');
+    await page.waitForFunction(
+      (was) => document.getElementById("q-statement-a").textContent !== was, first
+    );
+    assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
+    const fill = await page.locator("#q-progress-fill").evaluate((e) => e.style.width);
+    assert.ok(parseFloat(fill) > 0 && parseFloat(fill) < 100, "progress bar should have moved, got " + fill);
+
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Back returns to the previous question with that answer still selected", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/");
+    await instantAdvance(page);
+    await page.click("#btn-start");
+    await page.waitForSelector("#view-question:not([hidden])");
+
+    assert.strictEqual(await page.locator("#btn-back").isHidden(), true, "nothing is behind the first question");
+
+    const first = await page.textContent("#q-statement-a");
+    await page.click('#q-dots input[value="6"]');
+    await page.waitForFunction((was) => document.getElementById("q-statement-a").textContent !== was, first);
+    assert.strictEqual(await page.locator("#btn-back").isVisible(), true);
+
+    await page.click("#btn-back");
+    assert.strictEqual(await page.textContent("#q-statement-a"), first, "Back must land on the same question");
+    assert.strictEqual(
+      await page.locator("#q-dots input:checked").inputValue(), "6",
+      "the answer being revised must come back selected"
+    );
+    assert.strictEqual(await page.textContent("#q-feedback"), "Mostly the second one");
+    assert.strictEqual(await page.locator("#btn-back").isHidden(), true, "back to the first question hides Back again");
+
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("an arrow key moves along the dots without committing, Enter commits", { skip: !chromium }, async () => {
+  /* Auto-advance on every selection would end keyboard answering at the first
+     arrow press. change fires for an arrow key, click does not, and only
+     click advances. */
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/");
+    await instantAdvance(page);
+    await page.click("#btn-start");
+    await page.waitForSelector("#view-question:not([hidden])");
+
+    const first = await page.textContent("#q-statement-a");
+    await page.keyboard.press("3");
+    assert.strictEqual(await page.locator("#q-dots input:checked").inputValue(), "3");
+    assert.strictEqual(await page.textContent("#q-statement-a"), first, "a digit must not advance on its own");
+
+    /* Chromium fires a trusted click for each of these, so this walks several
+       in a row: one that slipped through would move the run on. */
+    for (const value of ["4", "5", "6"]) {
+      await page.keyboard.press("ArrowRight");
+      assert.strictEqual(await page.locator("#q-dots input:checked").inputValue(), value);
+      assert.strictEqual(await page.textContent("#q-statement-a"), first, "an arrow key must not advance");
+    }
+    await page.keyboard.press("ArrowLeft");
+    assert.strictEqual(await page.textContent("#q-feedback"), "Leans the second way");
+    assert.strictEqual(await page.textContent("#q-progress"), "Zero down, thirty-six to go",
+      "no arrow key may have recorded anything");
+
+    await page.keyboard.press("Enter");
+    await page.waitForFunction((was) => document.getElementById("q-statement-a").textContent !== was, first);
+    assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
+
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("auto-advance really is on a delay, and a second choice inside it replaces the first", { skip: !chromium }, async () => {
+  /* Every other run above sets ADVANCE_MS to 0, so without this the shipped
+     delay would never be exercised at all. */
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/");
+    await page.click("#btn-start");
+    await page.waitForSelector("#view-question:not([hidden])");
+    assert.ok(
+      await page.evaluate(() => window.SG.render.ADVANCE_MS >= 150),
+      "the shipped delay must be long enough to see a choice land"
+    );
+
+    const first = await page.textContent("#q-statement-a");
+    await page.click('#q-dots input[value="1"]');
+    assert.strictEqual(await page.textContent("#q-statement-a"), first, "the choice must be visible before it advances");
+
+    /* Changing your mind inside the window must move on once, not twice. */
+    await page.click('#q-dots input[value="7"]');
+    await page.waitForFunction((was) => document.getElementById("q-statement-a").textContent !== was, first);
+    assert.strictEqual(
+      await page.textContent("#q-progress"), "One down, thirty-five to go",
+      "two dots inside one window must record one answer, not skip a question"
+    );
+
+    await page.click("#btn-back");
+    assert.strictEqual(
+      await page.locator("#q-dots input:checked").inputValue(), "7",
+      "the recorded answer must be the second choice"
+    );
+
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("skipping moves on without recording an answer, and widens the honesty band", { skip: !chromium }, async () => {
+  /* "This one does not apply" sits next to a middle dot that looks like it
+     and does the opposite: js/score.js counts the dot and narrows the band,
+     and counts a skip as nothing, then widens the band by SKIP_PENALTY. This
+     walks the button end to end to prove the two really do part ways. */
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/");
+    await instantAdvance(page);
+    await page.click("#btn-start");
+    await page.waitForSelector("#view-question:not([hidden])");
+
+    const first = await page.textContent("#q-statement-a");
+    await page.click("#btn-skip");
+    assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
+    assert.notStrictEqual(await page.textContent("#q-statement-a"), first, "a skip must move on");
+    assert.strictEqual(
+      await page.locator("#q-dots input:checked").count(), 0,
+      "the next question must arrive with nothing chosen"
+    );
+
+    await answerNeutral(page, 35);
+    await page.waitForSelector("#view-reveal:not([hidden])");
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
   } finally {
     await browser.close();
   }

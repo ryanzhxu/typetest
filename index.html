@@ -39,7 +39,7 @@
       <div class="intro-card">
         <p class="eyebrow">A four-letter personality test</p>
         <h1>Personality</h1>
-        <p class="lede">Thirty-six questions on a seven-point slider. If two types are genuinely close for you, we say so instead of guessing.</p>
+        <p class="lede">Thirty-six questions on a seven-point scale. If two types are genuinely close for you, we say so instead of guessing.</p>
         <button type="button" id="btn-start" class="btn btn-primary">Start</button>
         <p class="intro-note">No account. Nothing saved. Nothing sent anywhere.</p>
       </div>
@@ -48,17 +48,25 @@
     <section id="view-question" class="view" hidden>
       <div class="question-card">
         <h2 id="q-heading" class="visually-hidden">Question</h2>
-        <p id="q-progress" class="progress-text" aria-live="polite"></p>
-        <div class="statement-pair">
+        <div class="progress">
+          <p id="q-progress" class="progress-text" aria-live="polite"></p>
+          <div class="progress-track">
+            <span id="q-progress-fill" class="progress-fill"></span>
+          </div>
+        </div>
+        <div class="scale">
           <p id="q-statement-a" class="statement statement-a" aria-live="polite"></p>
           <p id="q-statement-b" class="statement statement-b" aria-live="polite"></p>
+          <!-- The seven dots are built by js/render.js. They are the same
+               seven values the old slider carried, so js/score.js is
+               unchanged: 1 is the first statement, 7 is the second. -->
+          <div id="q-dots" class="dot-row" role="radiogroup"
+               aria-label="Choose which statement fits you better"></div>
         </div>
-        <input type="range" id="q-slider" min="1" max="7" step="1" value="4"
-               aria-label="Move toward whichever statement fits better" aria-valuetext="Somewhere in the middle">
         <p id="q-feedback" class="feedback-text" aria-live="polite"></p>
         <div class="question-actions">
-          <button type="button" id="btn-skip" class="btn btn-ghost">Neither, really</button>
-          <button type="button" id="btn-next" class="btn btn-primary">Next</button>
+          <button type="button" id="btn-back" class="link-btn" hidden>Back</button>
+          <button type="button" id="btn-skip" class="link-btn">This one does not apply</button>
         </div>
       </div>
     </section>

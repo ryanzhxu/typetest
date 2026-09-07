@@ -2,16 +2,26 @@
   "use strict";
   var SG = root.SG;
 
-  /* Slider feedback describes the answer just given, never the emerging type. */
+  /* Dot feedback describes the answer just given, never the emerging type.
+     The middle reads "Both, equally" and not "neither": in js/score.js it
+     counts as a real answer and narrows the honesty band, while the skip
+     beside it counts as none and widens it. Two controls that sit together
+     and do opposite things have to say so. */
   var FEEDBACK = [
     "Strongly the first one",
     "Mostly the first one",
     "Leans the first way",
-    "Somewhere in the middle",
+    "Both, equally",
     "Leans the second way",
     "Mostly the second one",
     "Strongly the second one"
   ];
+
+  /* How long a chosen dot stays on screen before the next question replaces
+     it. Long enough to see the choice land, short enough not to be a wait.
+     Tests set it to 0: at the default, thirty-six questions is nine seconds
+     of sleeping per run. */
+  var ADVANCE_MS = 250;
 
   var ONES = [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -44,12 +54,13 @@
       btnStart: document.getElementById("btn-start"),
 
       qProgress: document.getElementById("q-progress"),
+      qProgressFill: document.getElementById("q-progress-fill"),
       qStatementA: document.getElementById("q-statement-a"),
       qStatementB: document.getElementById("q-statement-b"),
-      qSlider: document.getElementById("q-slider"),
+      qDots: document.getElementById("q-dots"),
       qFeedback: document.getElementById("q-feedback"),
       btnSkip: document.getElementById("btn-skip"),
-      btnNext: document.getElementById("btn-next"),
+      btnBack: document.getElementById("btn-back"),
 
       revealCode: document.getElementById("reveal-code"),
       revealName: document.getElementById("reveal-name"),
@@ -106,9 +117,14 @@
     var INITIAL_NAV = nav;
     var INITIAL_CODE = navCode;
 
-    var pendingValue = 4;
+    /* null until the reader picks a dot. There is no default any more: with
+       no Next button to press past, a pre-selected middle would record an
+       answer nobody gave. */
+    var pendingValue = null;
+    var advanceTimer = null;
     var activeView = "intro";
     var firstRender = true;
+    var focusedView = null;
 
     var ROOT_TITLE = "Personality";
 
@@ -182,11 +198,83 @@
 
     /* ---- per-view rendering ---- */
 
-    function setSliderValue(value) {
+    /* ---- the seven dots, built once ---- */
+
+    /* One real radio per value, wrapped in its own label. Built here rather
+       than written into index.html so the generator's page contract stays
+       about the type view, and so the values and their labels cannot drift
+       apart. FEEDBACK is the accessible name of each dot, the same string the
+       old slider put in aria-valuetext. */
+    var dotInputs = [];
+    for (var v = 1; v <= 7; v += 1) {
+      (function (value) {
+        var label = document.createElement("label");
+        label.className = "dot dot-" + value;
+
+        var input = document.createElement("input");
+        input.type = "radio";
+        input.name = "q-value";
+        input.value = String(value);
+
+        var mark = document.createElement("span");
+        mark.className = "dot-mark";
+
+        var name = document.createElement("span");
+        name.className = "visually-hidden";
+        name.textContent = FEEDBACK[value - 1];
+
+        /* Both events only ever update the reading. What commits is a
+           pointer, and detail is how that is known: it is the click count,
+           so a real mouse click or a tap carries 1 and a click the keyboard
+           synthesised carries 0. Chromium fires a trusted click when an
+           arrow key walks a radio group, so advancing on any click at all
+           would end keyboard answering at the first arrow press. Measured in
+           Chromium: arrow 0, Space 0, mouse 1, touch tap 1. The keyboard
+           commits with Enter instead, below. */
+        input.addEventListener("change", function () { setValue(value); });
+        input.addEventListener("click", function (e) {
+          setValue(value);
+          if (e.detail > 0) { scheduleAdvance(); }
+        });
+
+        label.appendChild(input);
+        label.appendChild(mark);
+        label.appendChild(name);
+        el.qDots.appendChild(label);
+        dotInputs.push(input);
+      }(v));
+    }
+
+    function setValue(value) {
       pendingValue = value;
-      el.qSlider.value = String(value);
-      el.qFeedback.textContent = FEEDBACK[value - 1];
-      el.qSlider.setAttribute("aria-valuetext", FEEDBACK[value - 1]);
+      dotInputs.forEach(function (input) {
+        input.checked = Number(input.value) === value;
+      });
+      el.qFeedback.textContent = value === null ? "" : FEEDBACK[value - 1];
+    }
+
+    function advance() {
+      var value = pendingValue;
+      if (value === null) { return; }
+      pendingValue = null;
+      flow.answer(value);
+      render();
+    }
+
+    function cancelAdvance() {
+      if (advanceTimer === null) { return; }
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
+
+    /* A second dot chosen inside the window replaces the first, rather than
+       queueing a second advance that would skip the following question. */
+    function scheduleAdvance() {
+      cancelAdvance();
+      advanceTimer = setTimeout(function () {
+        advanceTimer = null;
+        advance();
+      }, SG.render.ADVANCE_MS);
     }
 
     function renderQuestion() {
@@ -196,9 +284,14 @@
       var remaining = state.total - state.index;
       el.qProgress.textContent =
         cap(numberWords(state.index)) + " down, " + numberWords(remaining) + " to go";
+      el.qProgressFill.style.width =
+        (state.total ? (state.index / state.total) * 100 : 0) + "%";
       el.qStatementA.textContent = item.a;
       el.qStatementB.textContent = item.b;
-      setSliderValue(4);
+      /* pendingValue is null on the way forward and holds the undone answer
+         on the way back, which is what puts that dot back under the reader. */
+      setValue(pendingValue);
+      el.btnBack.hidden = !flow.canBack();
     }
 
     function renderReveal() {
@@ -307,8 +400,20 @@
          wrong on the first paint of any page, where nothing has changed and
          the reader has not acted yet: the ring lands on the heading before
          anyone touches the page, and then clears on their first click, which
-         reads as a glitch rather than as focus. */
-      if (firstRender) { firstRender = false; return; }
+         reads as a glitch rather than as focus.
+
+         It is also wrong from one question to the next, where the view is the
+         same one and only its words changed: that would pull focus off the
+         dot the reader is standing on and end keyboard answering after a
+         single question. The statements are a live region, so a screen reader
+         is told about the new question without focus having to move. */
+      if (firstRender) {
+        firstRender = false;
+        focusedView = activeView;
+        return;
+      }
+      if (activeView === focusedView) { return; }
+      focusedView = activeView;
       focusView(activeView);
     }
 
@@ -316,21 +421,21 @@
 
     el.btnStart.addEventListener("click", function () {
       nav = null;
+      pendingValue = null;
       flow.start();
       render();
     });
 
-    el.qSlider.addEventListener("input", function () {
-      setSliderValue(Number(el.qSlider.value));
-    });
-
-    el.btnNext.addEventListener("click", function () {
-      flow.answer(pendingValue);
+    el.btnSkip.addEventListener("click", function () {
+      cancelAdvance();
+      pendingValue = null;
+      flow.skip();
       render();
     });
 
-    el.btnSkip.addEventListener("click", function () {
-      flow.skip();
+    el.btnBack.addEventListener("click", function () {
+      cancelAdvance();
+      pendingValue = flow.back();
       render();
     });
 
@@ -351,6 +456,7 @@
 
     el.btnRestart.addEventListener("click", function () {
       nav = null;
+      pendingValue = null;
       flow.reset();
       /* The result's URL no longer describes what is on screen, and a reload
          would hand back that type page instead of the test. replaceState, not
@@ -384,6 +490,7 @@
     el.btnTakeTest.addEventListener("click", function () {
       nav = null;
       navCode = null;
+      pendingValue = null;
       /* pushState, so Back returns to the type page they came from. */
       setUrl("/", { view: "flow" }, false, ROOT_TITLE);
       flow.start();
@@ -415,23 +522,26 @@
       render();
     });
 
+    /* 1-7 chooses without committing, the same as an arrow key, so a
+       mistyped digit can be corrected. Enter commits. */
     document.addEventListener("keydown", function (e) {
       if (activeView !== "question") { return; }
       var tag = document.activeElement ? document.activeElement.tagName : "";
       if (e.key >= "1" && e.key <= "7") {
         e.preventDefault();
-        setSliderValue(Number(e.key));
-        el.qSlider.focus();
+        cancelAdvance();
+        setValue(Number(e.key));
+        dotInputs[Number(e.key) - 1].focus();
       } else if (e.key === "Enter") {
         if (tag === "BUTTON") { return; }
         e.preventDefault();
-        flow.answer(pendingValue);
-        render();
+        cancelAdvance();
+        advance();
       }
     });
 
     render();
   }
 
-  SG.render = { mount: mount };
+  SG.render = { mount: mount, ADVANCE_MS: ADVANCE_MS };
 }(typeof window !== "undefined" ? window : globalThis));
