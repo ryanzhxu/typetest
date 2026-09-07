@@ -4,7 +4,7 @@
 
 **Goal:** Give each of the sixteen types its own indexable, shareable URL, so that parent spec §5.4 ("sixteen good pages beats one good quiz for traffic") is actually implemented.
 
-**Architecture:** A deploy-time Node generator reads the single `index.html`, and for each type emits `public/<code>/index.html` with that type's head meta **and** that type's body copy already filled in, the intro view hidden and the type view shown. The shipped JavaScript reads `data-initial-type` on the body and opens the same view it would have opened anyway, so the static page and the live page agree. Gallery cards become real anchors. The result view rewrites the address bar to `/<code>`.
+**Architecture:** A deploy-time Node generator reads the single `index.html`, and for each type emits `public/<code>.html` with that type's head meta **and** that type's body copy already filled in, the intro view hidden and the type view shown. The shipped JavaScript reads `data-initial-type` on the body and opens the same view it would have opened anyway, so the static page and the live page agree. Gallery cards become real anchors. The result view rewrites the address bar to `/<code>`.
 
 **Tech Stack:** Vanilla HTML/CSS/JS (classic scripts), zero runtime dependencies, `node:test` + `node:assert`, Playwright for browser smoke tests, Cloudflare Pages via GitHub Actions.
 
@@ -114,7 +114,7 @@ The name leads because it is the distinctive half; the code follows because it i
 | `index.html` | Modify | Generator markers, empty fill targets, the test call-to-action block |
 | `app.css` | Modify | Gallery card as an anchor, the call-to-action block |
 | `js/render.js` | Modify | Deep link, anchor gallery, `pushState`/`replaceState`/`popstate` |
-| `scripts/build-types.js` | Create | Emits sixteen `<code>/index.html` files and `sitemap.xml` |
+| `scripts/build-types.js` | Create | Emits sixteen `<code>.html` files and `sitemap.xml` |
 | `scripts/stage.js` | Create | Builds the exact deploy directory; used by CI *and* by the smoke tests |
 | `test/build-types.test.js` | Create | Generator unit tests, including must-throw cases |
 | `test/serve.js` | Create | Zero-dependency static server that mimics Pages path resolution |
@@ -346,6 +346,29 @@ sixteen generated pages."
 
 ## Task 2: The generator
 
+**Output filename: `<code>.html`, never `<code>/index.html`.** Corrected after
+the first deploy, from behavior measured on the live site rather than assumed:
+
+```
+/enfj              308 -> https://personality.ryanxu.dev/enfj/   (directory form)
+/enfj/index.html   308 -> https://personality.ryanxu.dev/enfj/
+/404               200                                           (404.html served here)
+/404.html          308 -> /404
+```
+
+Cloudflare Pages serves `<name>.html` at the extensionless path `/<name>` with
+a plain 200, and appends a trailing slash only to the directory form. The URL
+scheme frozen in §2.1 is `/enfj`, with no trailing slash, and every canonical,
+every `og:url`, all seventeen sitemap entries and all sixteen gallery hrefs say
+exactly that. Under the directory form, every one of them pointed at a URL that
+308-redirects somewhere else, which is precisely the failure this piece exists
+to prevent. The filename is the only thing that changes; no URL string moves.
+
+The local test server could not see this, because it answered 200 to both
+`/enfj` and `/enfj/`. Task 4 now teaches it the real rule, and the HTTP smoke
+test asserts `/enfj` with `redirect: "manual"` so a 3xx cannot hide behind a
+followed redirect.
+
 **Files:**
 - Create: `scripts/build-types.js`
 - Test: `test/build-types.test.js` (create)
@@ -360,7 +383,7 @@ sixteen generated pages."
   - `descriptionFor(code, type)` -> the frozen description string.
   - `buildPage(indexHtml, code, type)` -> the full HTML string for that type's page. **Throws** on any missing or ambiguous target.
   - `buildSitemap(codes)` -> the `sitemap.xml` string.
-  - `build(outDir)` -> writes `outDir/<lowercase code>/index.html` for all sixteen and `outDir/sitemap.xml`; returns the array of written paths.
+  - `build(outDir)` -> writes `outDir/<lowercase code>.html` for all sixteen and `outDir/sitemap.xml`; returns the array of written paths.
 - Produces, as a CLI: `node scripts/build-types.js [outDir]`, default `outDir` is `public`.
 
 - [ ] **Step 1: Write the failing test**
@@ -562,16 +585,17 @@ test("the sitemap lists the root plus all sixteen, and nothing else", () => {
   assert.ok(xml.trim().endsWith("</urlset>"));
 });
 
-test("build() writes sixteen directories and a sitemap and nothing else", () => {
+test("build() writes sixteen type pages and a sitemap and nothing else", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "a3-build-"));
   try {
     gen.build(dir);
     const entries = fs.readdirSync(dir).sort();
-    const expected = CODES.map((c) => c.toLowerCase()).concat(["sitemap.xml"]).sort();
+    const expected = CODES.map((c) => c.toLowerCase() + ".html").concat(["sitemap.xml"]).sort();
     assert.deepStrictEqual(entries, expected);
     CODES.forEach((code) => {
-      const p = path.join(dir, code.toLowerCase(), "index.html");
+      const p = path.join(dir, code.toLowerCase() + ".html");
       assert.ok(fs.existsSync(p), "missing " + p);
+      assert.ok(fs.statSync(p).isFile(), p + " must be a file, not a directory");
       assert.ok(fs.readFileSync(p, "utf8").includes('data-initial-type="' + code + '"'));
     });
   } finally {
@@ -735,11 +759,10 @@ function build(outDir) {
   if (codes.length !== 16) {
     throw new Error("build-types: expected 16 types, found " + codes.length);
   }
+  fs.mkdirSync(outDir, { recursive: true });
   const written = [];
   codes.forEach((code) => {
-    const dir = path.join(outDir, code.toLowerCase());
-    fs.mkdirSync(dir, { recursive: true });
-    const file = path.join(dir, "index.html");
+    const file = path.join(outDir, code.toLowerCase() + ".html");
     fs.writeFileSync(file, buildPage(indexHtml, code, BY_CODE[code]));
     written.push(file);
   });
@@ -769,7 +792,7 @@ If the "no trace of the other fifteen" test fails on a name rather than a code, 
 
 ```bash
 node scripts/build-types.js /tmp/a3-check
-sed -n '1,40p' /tmp/a3-check/infj/index.html
+sed -n '1,40p' /tmp/a3-check/infj.html
 grep -c '<loc>' /tmp/a3-check/sitemap.xml
 ```
 
@@ -1024,7 +1047,7 @@ Independent of tasks 1 to 3. Can run at the same time as Task 1.
 **Interfaces:**
 - Produces, for Task 5:
   - `require("./serve.js").start(dir)` -> `Promise<{ url, port, close }>` where `url` is like `http://127.0.0.1:49213` and `close()` returns a Promise.
-  - Path resolution matching Cloudflare Pages: `/` serves `index.html`; `/x` serves `x/index.html` if present, else the file `x`; anything else returns HTTP 404 with the body of `404.html`.
+  - Path resolution matching Cloudflare Pages, measured on the live site: `/` serves `index.html`; `/x` serves the file `x` if present, else `x.html`, else `x/index.html`; anything else returns HTTP 404 with the body of `404.html`. A request for `/x.html` that has an extensionless equivalent answers `308` with a `Location` of `/x`, and a bare path that resolves to a directory answers `308` with the trailing slash appended. Those two redirects are the point: a server that answers 200 to both forms cannot see a canonical that redirects.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1047,8 +1070,7 @@ function fixture() {
   fs.writeFileSync(path.join(dir, "robots.txt"), "User-agent: *\n");
   fs.writeFileSync(path.join(dir, "sitemap.xml"), "<urlset/>");
   fs.writeFileSync(path.join(dir, "app.css"), "body{}");
-  fs.mkdirSync(path.join(dir, "enfj"));
-  fs.writeFileSync(path.join(dir, "enfj", "index.html"), "<p>enfj</p>");
+  fs.writeFileSync(path.join(dir, "enfj.html"), "<p>enfj</p>");
   return dir;
 }
 
@@ -1067,9 +1089,9 @@ test("the test server resolves paths the way Cloudflare Pages does", async () =>
     assert.deepStrictEqual(
       (await get(server.url, "/")).body, "<p>root</p>", "/ must serve index.html"
     );
-    const type = await get(server.url, "/enfj");
-    assert.strictEqual(type.status, 200);
-    assert.strictEqual(type.body, "<p>enfj</p>", "/enfj must serve enfj/index.html");
+    const type = await getRaw(server.url, "/enfj");
+    assert.strictEqual(type.status, 200, "/enfj must be 200 directly, not a redirect");
+    assert.strictEqual(type.body, "<p>enfj</p>", "/enfj must serve enfj.html");
 
     const robots = await get(server.url, "/robots.txt");
     assert.strictEqual(robots.status, 200);
@@ -1858,7 +1880,7 @@ Taken from A3 design §6, plus what this plan added. Every one is checked by a n
 
 | Criterion | Proved by |
 |---|---|
-| `/enfj` returns 200 with a title naming ENFJ's type and a self-referencing canonical | Task 5 HTTP smoke test; Task 6 step 3 and 4 |
+| `/enfj` returns 200 **directly, with no redirect**, and a title naming ENFJ's type and a self-referencing canonical | Task 5 HTTP smoke test, asserted with `redirect: "manual"`; Task 6 step 3 and 4 |
 | Sixteen distinct titles, sixteen distinct canonicals, no duplicates | `test/build-types.test.js`; Task 6 step 4 |
 | A garbage path returns 404, not 200 | `test/serve.test.js`, Task 5 HTTP smoke test; Task 6 step 3 |
 | Finishing the test leaves the address bar at `/<code>` | Task 5 browser smoke test; Task 6 step 6 |

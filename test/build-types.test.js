@@ -192,16 +192,20 @@ test("the sitemap lists the root plus all sixteen, and nothing else", () => {
   assert.ok(xml.trim().endsWith("</urlset>"));
 });
 
-test("build() writes sixteen directories, a root page and a sitemap, and nothing else", () => {
+/* Files, not directories. Cloudflare Pages serves enfj.html at /enfj with a
+   200, but 308s /enfj to /enfj/ when enfj is a directory, which would make
+   every canonical, sitemap entry and gallery href point at a redirect. */
+test("build() writes sixteen type pages, a root page and a sitemap, and nothing else", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "a3-build-"));
   try {
     gen.build(dir);
     const entries = fs.readdirSync(dir).sort();
-    const expected = CODES.map((c) => c.toLowerCase()).concat(["index.html", "sitemap.xml"]).sort();
+    const expected = CODES.map((c) => c.toLowerCase() + ".html").concat(["index.html", "sitemap.xml"]).sort();
     assert.deepStrictEqual(entries, expected);
     CODES.forEach((code) => {
-      const p = path.join(dir, code.toLowerCase(), "index.html");
+      const p = path.join(dir, code.toLowerCase() + ".html");
       assert.ok(fs.existsSync(p), "missing " + p);
+      assert.ok(fs.statSync(p).isFile(), p + " must be a file, not a directory");
       assert.ok(fs.readFileSync(p, "utf8").includes('data-initial-type="' + code + '"'));
     });
   } finally {

@@ -11,10 +11,12 @@ test("the deploy directory holds the public site and nothing else", () => {
   try {
     stage.stage(dir);
     const top = fs.readdirSync(dir).sort();
+    /* One file per type, not one directory: Pages serves enfj.html at /enfj,
+       but 308s /enfj to /enfj/ when enfj is a directory. */
     const expectedTypes = [
       "enfj", "enfp", "entj", "entp", "esfj", "esfp", "estj", "estp",
       "infj", "infp", "intj", "intp", "isfj", "isfp", "istj", "istp"
-    ];
+    ].map((code) => code + ".html");
     const expected = ["404.html", "app.css", "index.html", "js", "robots.txt", "sitemap.xml"]
       .concat(expectedTypes).sort();
     assert.deepStrictEqual(top, expected);

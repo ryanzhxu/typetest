@@ -182,11 +182,15 @@ function build(outDir) {
   if (codes.length !== 16) {
     throw new Error("build-types: expected 16 types, found " + codes.length);
   }
+  fs.mkdirSync(outDir, { recursive: true });
   const written = [];
+  /* <code>.html, not <code>/index.html. Cloudflare Pages serves <name>.html at
+     the extensionless path /<name> with a plain 200, but it appends a trailing
+     slash to the directory form: /enfj then 308s to /enfj/. Measured on the
+     live site. The directory form therefore made every canonical, every
+     sitemap entry and every gallery href point at a redirect. */
   codes.forEach((code) => {
-    const dir = path.join(outDir, code.toLowerCase());
-    fs.mkdirSync(dir, { recursive: true });
-    const file = path.join(dir, "index.html");
+    const file = path.join(outDir, code.toLowerCase() + ".html");
     fs.writeFileSync(file, buildPage(indexHtml, code, BY_CODE[code]));
     written.push(file);
   });

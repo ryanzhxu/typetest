@@ -185,11 +185,17 @@ test(
 );
 
 test("the served site answers the status codes the search engines will see", async () => {
-  const root = await fetch(site.url + "/");
-  assert.strictEqual(root.status, 200);
+  /* redirect: "manual", so a 3xx is visible. fetch follows redirects by
+     default, which is how the site shipped with every canonical, every
+     sitemap entry and every gallery href pointing at a URL that 308s
+     elsewhere: /enfj answered 200 to a following request the whole time.
+     A canonical that does not resolve to itself is the one thing this piece
+     exists to get right, so assert the status code the crawler sees. */
+  const root = await fetch(site.url + "/", { redirect: "manual" });
+  assert.strictEqual(root.status, 200, "/ must be 200 directly, not a redirect");
 
-  const type = await fetch(site.url + "/enfj");
-  assert.strictEqual(type.status, 200, "/enfj must be its own document");
+  const type = await fetch(site.url + "/enfj", { redirect: "manual" });
+  assert.strictEqual(type.status, 200, "/enfj must be its own document, reached with no redirect");
 
   const missing = await fetch(site.url + "/totally-made-up-path");
   assert.strictEqual(missing.status, 404, "an unknown path must 404, not serve the homepage");

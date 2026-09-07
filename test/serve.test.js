@@ -14,14 +14,24 @@ function fixture() {
   fs.writeFileSync(path.join(dir, "robots.txt"), "User-agent: *\n");
   fs.writeFileSync(path.join(dir, "sitemap.xml"), "<urlset/>");
   fs.writeFileSync(path.join(dir, "app.css"), "body{}");
-  fs.mkdirSync(path.join(dir, "enfj"));
-  fs.writeFileSync(path.join(dir, "enfj", "index.html"), "<p>enfj</p>");
+  /* The shape the generator actually emits: <code>.html, served at /<code>. */
+  fs.writeFileSync(path.join(dir, "enfj.html"), "<p>enfj</p>");
+  /* The directory form, kept so the fallback stays covered. */
+  fs.mkdirSync(path.join(dir, "old"));
+  fs.writeFileSync(path.join(dir, "old", "index.html"), "<p>old</p>");
   return dir;
 }
 
 async function get(base, p) {
   const res = await fetch(base + p);
   return { status: res.status, type: res.headers.get("content-type"), body: await res.text() };
+}
+
+/* Redirects must stay visible: a followed redirect looks exactly like a 200,
+   which is how a site shipped with every canonical pointing at a 308. */
+async function getRaw(base, p) {
+  const res = await fetch(base + p, { redirect: "manual" });
+  return { status: res.status, location: res.headers.get("location"), body: await res.text() };
 }
 
 /* fetch() runs its path through the WHATWG URL parser, which collapses
@@ -49,9 +59,21 @@ test("the test server resolves paths the way Cloudflare Pages does", async () =>
     assert.deepStrictEqual(
       (await get(server.url, "/")).body, "<p>root</p>", "/ must serve index.html"
     );
-    const type = await get(server.url, "/enfj");
-    assert.strictEqual(type.status, 200);
-    assert.strictEqual(type.body, "<p>enfj</p>", "/enfj must serve enfj/index.html");
+    /* The case that matters: Pages serves enfj.html at /enfj, with a plain
+       200 and no trailing slash. */
+    const type = await getRaw(server.url, "/enfj");
+    assert.strictEqual(type.status, 200, "/enfj must be 200 directly, not a redirect");
+    assert.strictEqual(type.body, "<p>enfj</p>", "/enfj must serve enfj.html");
+
+    /* The directory form, and the reason the generator abandoned it: Pages
+       appends the trailing slash, so the bare path is a redirect. */
+    const bare = await getRaw(server.url, "/old");
+    assert.strictEqual(bare.status, 308, "a directory must not be served at the bare path");
+    assert.strictEqual(bare.location, "/old/");
+
+    const dirForm = await getRaw(server.url, "/old/");
+    assert.strictEqual(dirForm.status, 200);
+    assert.strictEqual(dirForm.body, "<p>old</p>", "/old/ must serve old/index.html");
 
     const robots = await get(server.url, "/robots.txt");
     assert.strictEqual(robots.status, 200);
@@ -63,6 +85,39 @@ test("the test server resolves paths the way Cloudflare Pages does", async () =>
 
     const css = await get(server.url, "/app.css");
     assert.match(css.type, /text\/css/);
+  } finally {
+    await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* The rule this server got wrong once. Pages owns the extensionless path and
+   308s the .html URL to it, so a generator that emits the directory form
+   turns every canonical into a redirect. Measured on the live site:
+   /404.html -> /404, /index.html -> /, /enfj/index.html -> /enfj/. */
+test("the test server redirects a .html URL to the extensionless path, as Pages does", async () => {
+  const dir = fixture();
+  const server = await serve.start(dir);
+  try {
+    const page = await getRaw(server.url, "/enfj.html");
+    assert.strictEqual(page.status, 308, "/enfj.html must redirect, not serve");
+    assert.strictEqual(page.location, "/enfj");
+
+    const notFound = await getRaw(server.url, "/404.html");
+    assert.strictEqual(notFound.status, 308);
+    assert.strictEqual(notFound.location, "/404");
+
+    const root = await getRaw(server.url, "/index.html");
+    assert.strictEqual(root.status, 308);
+    assert.strictEqual(root.location, "/", "/index.html belongs to /, not to /index");
+
+    const dirForm = await getRaw(server.url, "/old/index.html");
+    assert.strictEqual(dirForm.status, 308);
+    assert.strictEqual(dirForm.location, "/old/", "the directory form keeps its trailing slash");
+
+    /* A .html URL with no file behind it is still a 404, not a redirect. */
+    const missing = await getRaw(server.url, "/nope.html");
+    assert.strictEqual(missing.status, 404);
   } finally {
     await server.close();
     fs.rmSync(dir, { recursive: true, force: true });
