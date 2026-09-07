@@ -76,10 +76,27 @@ test("stage refuses any source path, so a wrong argument cannot delete the repo"
   assert.strictEqual(stage.isProtected(path.resolve(root, "public")), false, "public must stay stageable");
   assert.strictEqual(stage.isProtected(path.resolve(os.tmpdir(), "a3-out")), false, "a temp dir must stay stageable");
 
+  /* Some protected names are git-ignored, so a fresh checkout does not have
+     them: .superpowers is the agent workspace and is absent in CI. They still
+     belong in the guard, because a wrong argument can delete them on a
+     developer's machine, so the two assertion sets above cover the full list
+     and so does the throw below. stage() refuses before it touches the
+     filesystem, so a path that does not exist is fine to hand it.
+
+     Only the filesystem half has to be conditional. Compute what is actually
+     on disk once, and use that same list for the backup, the survival
+     assertions and the restore. */
+  const onDisk = (names) => names.filter((name) => fs.existsSync(path.join(root, name)));
+
   /* Back up only the top-level entries: a nested case such as js/render.js is
      covered by the backup of js/. */
-  const roots = ["index.html", "app.css", "404.html", "robots.txt",
-                 "js", "scripts", "test", "docs", ".github", ".superpowers", "package.json"];
+  const roots = onDisk(["index.html", "app.css", "404.html", "robots.txt",
+                        "js", "scripts", "test", "docs", ".github", ".superpowers", "package.json"]);
+  /* A guard against this half quietly emptying itself out. */
+  ["js", "scripts", "test"].forEach((name) => {
+    assert.ok(roots.includes(name), name + " is tracked and must be on disk in any checkout");
+  });
+
   const backup = fs.mkdtempSync(path.join(os.tmpdir(), "a3-src-backup-"));
   roots.forEach((name) => {
     fs.cpSync(path.join(root, name), path.join(backup, name), { recursive: true });
@@ -88,10 +105,13 @@ test("stage refuses any source path, so a wrong argument cannot delete the repo"
   try {
     /* Prove the guard is actually wired into stage(), not merely correct in
        isolation, and that each of these survives the attempt. */
+    const survivors = onDisk(cases);
     cases.forEach((name) => {
       const target = path.join(root, name);
       assert.throws(() => stage.stage(target), /refusing to stage over the source path/, name);
-      assert.ok(fs.existsSync(target), name + " must survive the attempt to stage over it");
+      if (survivors.includes(name)) {
+        assert.ok(fs.existsSync(target), name + " must survive the attempt to stage over it");
+      }
     });
     assert.ok(fs.existsSync(path.join(root, "js", "render.js")), "js/render.js must survive");
     assert.ok(fs.existsSync(path.join(root, "scripts", "stage.js")), "scripts/stage.js must survive");
