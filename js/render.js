@@ -80,6 +80,7 @@
       typeBest: document.getElementById("type-best"),
       typeUndone: document.getElementById("type-undone"),
       typeChips: document.getElementById("type-chips"),
+      typeSections: document.getElementById("type-sections"),
       typeOften: document.getElementById("type-often"),
       shareBlock: document.getElementById("share-block"),
       btnRestart: document.getElementById("btn-restart"),
@@ -343,6 +344,29 @@
         var li = document.createElement("li");
         li.textContent = name;
         el.typeOften.appendChild(li);
+      });
+
+      /* The generator ships these in the static HTML so a crawler reads them
+         without running any JavaScript. Clear before rebuilding, exactly as
+         the gallery does, or a client-side visit to a second type would
+         append its sections underneath the first type's. */
+      el.typeSections.innerHTML = "";
+      SG.types.SECTIONS.forEach(function (section) {
+        var wrap = document.createElement("section");
+        wrap.className = "type-section";
+
+        var h = document.createElement("h3");
+        h.textContent = section.heading;
+        wrap.appendChild(h);
+
+        t[section.key].forEach(function (paragraph) {
+          var p = document.createElement("p");
+          p.className = "type-paragraph";
+          p.textContent = paragraph;
+          wrap.appendChild(p);
+        });
+
+        el.typeSections.appendChild(wrap);
       });
     }
 

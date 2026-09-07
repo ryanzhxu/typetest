@@ -49,7 +49,7 @@ test("there is exactly one bare body tag for the generator to annotate", () => {
 
 test("every fill target exists and is empty", () => {
   ["type-code", "type-name", "type-opening", "type-best", "type-undone", "type-chips", "type-often",
-   "gallery-grid"]
+   "type-sections", "gallery-grid"]
     .forEach((id) => {
       const re = new RegExp('<([a-z0-9]+)([^>]*\\sid="' + id + '"[^>]*)></\\1>', "g");
       const hits = HTML.match(re) || [];

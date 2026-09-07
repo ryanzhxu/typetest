@@ -30,6 +30,9 @@ const fs = require("node:fs");
 const os = require("node:os");
 const serve = require("./serve.js");
 const stage = require("../scripts/stage.js");
+require("../js/ns.js");
+require("../js/types.js");
+const types = globalThis.SG.types;
 
 /* The staged site, built by the same script the deploy uses, served over HTTP.
    file:// cannot answer any of the questions this piece is about: what status
@@ -797,6 +800,54 @@ test("skipping moves on without recording an answer, and widens the honesty band
 
     await answerNeutral(page, 35);
     await page.waitForSelector("#view-reveal:not([hidden])");
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("the five long sections are in the raw HTML of a type page, before any JavaScript runs", async () => {
+  /* These sections are now most of the copy on a type page, so they are most
+     of what a crawler comes for. If they only ever appeared after render.js
+     ran, the pages would be near empty to anything that does not run scripts,
+     which is the whole reason the generator exists. */
+  const html = await (await fetch(site.url + "/infj")).text();
+
+  const infj = types.byCode.INFJ;
+  types.SECTIONS.forEach((section) => {
+    assert.ok(html.includes("<h3>" + section.heading + "</h3>"), "missing heading: " + section.heading);
+    infj[section.key].forEach((paragraph) => {
+      assert.ok(
+        html.includes('<p class="type-paragraph">' + paragraph + "</p>"),
+        section.key + " paragraph missing from the static HTML"
+      );
+    });
+  });
+
+  /* ENFJ's copy must not be on INFJ's page. */
+  assert.ok(!html.includes(types.byCode.ENFJ.good[0]), "another type's copy leaked onto this page");
+});
+
+test("browsing from one type to another replaces the sections instead of stacking them", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/enfj");
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(await page.locator("#type-sections .type-section").count(), 5);
+
+    await page.click("#btn-nav-sixteen");
+    await page.click('#gallery-grid a[href="/infj"]');
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(
+      await page.locator("#type-sections .type-section").count(), 5,
+      "a second type must replace the sections, not append to them"
+    );
+    const text = await page.textContent("#type-sections");
+    assert.ok(text.includes("You are already at the ceiling there."), "INFJ's copy must be shown");
+    assert.ok(!text.includes("Warm Front"), "ENFJ's copy must be gone");
+
     assert.strictEqual(errors.length, 0, errors.join("\n"));
   } finally {
     await browser.close();

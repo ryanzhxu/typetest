@@ -16,6 +16,7 @@ const ORIGIN = "https://personality.ryanxu.dev";
 require(path.join(ROOT, "js", "ns.js"));
 require(path.join(ROOT, "js", "types.js"));
 const BY_CODE = globalThis.SG.types.byCode;
+const SECTIONS = globalThis.SG.types.SECTIONS;
 
 function escapeText(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -98,6 +99,20 @@ function galleryItems(byCode) {
   }).join("");
 }
 
+/* The same markup js/render.js builds, so the static page and the rendered one
+   never disagree. Written into every page because these five sections are now
+   most of what a crawler, and a reader with no JavaScript, would come for. */
+function sectionsHtml(type) {
+  return SECTIONS.map(function (section) {
+    return '<section class="type-section">' +
+      "<h3>" + escapeText(section.heading) + "</h3>" +
+      type[section.key].map(function (paragraph) {
+        return '<p class="type-paragraph">' + escapeText(paragraph) + "</p>";
+      }).join("") +
+      "</section>";
+  }).join("");
+}
+
 /* The comment naming the generator and its contract test is for whoever edits
    index.html. It names private paths, so it does not belong on a public page.
    The pages.dev canonical comment above it explains a real thing to a real
@@ -160,6 +175,7 @@ function buildPage(indexHtml, code, type) {
   html = fillById(html, "type-undone", escapeText("You come undone " + type.undone));
   html = fillById(html, "type-chips", listItems(type.chips));
   html = fillById(html, "type-often", listItems(type.often));
+  html = fillById(html, "type-sections", sectionsHtml(type));
   html = fillById(html, "gallery-grid", galleryItems(BY_CODE));
 
   return html;
@@ -208,7 +224,7 @@ function build(outDir) {
 
 module.exports = {
   ORIGIN, escapeText, escapeAttr, titleFor, descriptionFor,
-  galleryItems, buildRoot, buildPage, buildSitemap, build
+  galleryItems, sectionsHtml, buildRoot, buildPage, buildSitemap, build
 };
 
 if (require.main === module) {

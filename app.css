@@ -475,6 +475,25 @@ main {
   font-size: 0.85rem;
 }
 
+/* The five long sections. No colour rule down the side: peach and lilac are
+   reserved for the two-types idea and the spec says so. The heading and the
+   spacing do the separating. */
+.type-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.type-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.type-section h3 {
+  font-size: 1.3rem;
+}
+
 .often-block {
   display: flex;
   flex-direction: column;

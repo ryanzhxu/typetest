@@ -138,7 +138,12 @@ test("attribute and text values are escaped", () => {
     best: "best & <thing>.",
     undone: "undone & <thing>.",
     chips: ["a & b", "c < d", "e > f", "g", "h"],
-    often: ['X "Y"', "Z & W", "a", "b", "c"]
+    often: ['X "Y"', "Z & W", "a", "b", "c"],
+    good: ["good & <one>.", "two.", "three."],
+    snags: ["snags & <one>.", "two.", "three."],
+    closeUp: ["closeUp & <one>.", "two.", "three."],
+    work: ["work & <one>.", "two.", "three."],
+    oneThing: ["oneThing & <one>.", "two.", "three."]
   };
   const html = gen.buildPage(INDEX, "INFJ", nasty);
   const head = html.split("<!-- BUILD:HEAD:START -->")[1].split("<!-- BUILD:HEAD:END -->")[0];
@@ -150,6 +155,16 @@ test("attribute and text values are escaped", () => {
   assert.ok(html.includes("<li>a &amp; b</li>"), "chip text must escape ampersands");
   assert.ok(html.includes("<li>c &lt; d</li>"), "chip text must escape angle brackets");
   assert.ok(!html.includes("<D>"), "a raw tag was injected from type copy");
+
+  /* The five long sections are the bulk of the copy on a page now, so they
+     are the likeliest place for an unescaped character to reach the HTML. */
+  ["good", "snags", "closeUp", "work", "oneThing"].forEach((key) => {
+    assert.ok(
+      html.includes('<p class="type-paragraph">' + key + " &amp; &lt;one&gt;.</p>"),
+      key + " paragraphs must be escaped"
+    );
+  });
+  assert.ok(!html.includes("<one>"), "a raw tag was injected from section copy");
 });
 
 test("the generator refuses to work on an index.html that lost a marker", () => {
