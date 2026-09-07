@@ -141,7 +141,7 @@
 
       ctx.font = "36px " + bodyFamily;
       ctx.fillStyle = TEXT_MUTED;
-      ctx.fillText("There is a " + secondType.name + " in you too.", CENTER_X, cursorY);
+      ctx.fillText(secondType.name + " is in you too.", CENTER_X, cursorY);
       cursorY += 64;
 
       /* Peach is the user's own letter. est measures distance toward pole
