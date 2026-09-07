@@ -1,0 +1,166 @@
+"use strict";
+/* Deploy-time only. Reads index.html and emits one page per type, each with
+   its own head meta and its own copy already in the HTML. Nothing here ships
+   to the browser.
+
+   Every helper below throws rather than guessing. A generator that quietly
+   emits sixteen pages with the homepage's title is worse than one that fails
+   the build, because nothing downstream would notice. */
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const ROOT = path.resolve(__dirname, "..");
+const ORIGIN = "https://personality.ryanxu.dev";
+
+require(path.join(ROOT, "js", "ns.js"));
+require(path.join(ROOT, "js", "types.js"));
+const BY_CODE = globalThis.SG.types.byCode;
+
+function escapeText(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escapeAttr(s) {
+  return escapeText(s).replace(/"/g, "&quot;");
+}
+
+/* Replace with a function, never a string: a "$&" or "$1" inside type copy
+   would otherwise be read as a replacement pattern. */
+function replaceOnce(html, re, make, what) {
+  const hits = html.match(new RegExp(re.source, re.flags.replace("g", "") + "g")) || [];
+  if (hits.length !== 1) {
+    throw new Error(
+      "build-types: expected exactly one " + what + " in index.html, found " + hits.length +
+      ". The page contract in test/index-html.test.js is broken."
+    );
+  }
+  return html.replace(re, make);
+}
+
+function fillById(html, id, inner) {
+  const re = new RegExp('<([a-z0-9]+)([^>]*\\sid="' + id + '"[^>]*)></\\1>');
+  return replaceOnce(html, re, (m, tag, attrs) => "<" + tag + attrs + ">" + inner + "</" + tag + ">",
+    'empty element with id="' + id + '"');
+}
+
+function setHidden(html, id, hidden) {
+  const re = new RegExp('<([a-z0-9]+)([^>]*\\sid="' + id + '"[^>]*)>');
+  return replaceOnce(html, re, (m, tag, attrs) => {
+    const bare = attrs.replace(/\s+hidden(?=\s|$)/, "");
+    return "<" + tag + bare + (hidden ? " hidden" : "") + ">";
+  }, 'element with id="' + id + '"');
+}
+
+function titleFor(code, type) {
+  return type.name + " (" + code + ")";
+}
+
+function descriptionFor(code, type) {
+  return type.line + " What " + code +
+    " looks like up close, and the second type that lives in it.";
+}
+
+function headFor(code, type) {
+  const title = escapeAttr(titleFor(code, type));
+  const desc = escapeAttr(descriptionFor(code, type));
+  const url = ORIGIN + "/" + code.toLowerCase();
+  return [
+    "  <title>" + escapeText(titleFor(code, type)) + "</title>",
+    '  <meta name="description" content="' + desc + '">',
+    '  <link rel="canonical" href="' + url + '">',
+    '  <meta property="og:type" content="website">',
+    '  <meta property="og:url" content="' + url + '">',
+    '  <meta property="og:site_name" content="Personality">',
+    '  <meta property="og:title" content="' + title + '">',
+    '  <meta property="og:description" content="' + desc + '">',
+    '  <meta name="twitter:card" content="summary">',
+    '  <meta name="twitter:title" content="' + title + '">',
+    '  <meta name="twitter:description" content="' + desc + '">'
+  ].join("\n");
+}
+
+function listItems(values) {
+  return values.map((v) => "<li>" + escapeText(v) + "</li>").join("");
+}
+
+function buildPage(indexHtml, code, type) {
+  if (!/^[A-Z]{4}$/.test(code) || !BY_CODE[code]) {
+    throw new Error("build-types: unknown type code " + code);
+  }
+  let html = indexHtml;
+
+  html = replaceOnce(
+    html,
+    /<!-- BUILD:HEAD:START -->[\s\S]*?<!-- BUILD:HEAD:END -->/,
+    () => "<!-- BUILD:HEAD:START -->\n" + headFor(code, type) + "\n  <!-- BUILD:HEAD:END -->",
+    "BUILD:HEAD marker pair"
+  );
+
+  /* A page served at /enfj cannot reach a relative app.css. The root page
+     keeps relative paths so index.html still opens from the filesystem. */
+  html = replaceOnce(html, /href="app\.css"/, () => 'href="/app.css"', 'href="app.css"');
+  const jsHits = (html.match(/src="js\//g) || []).length;
+  if (jsHits !== 8) {
+    throw new Error("build-types: expected 8 script tags, found " + jsHits);
+  }
+  html = html.replace(/src="js\//g, 'src="/js/');
+
+  html = replaceOnce(html, /<body>/, () => '<body data-initial-type="' + code + '">', "<body> tag");
+
+  html = setHidden(html, "view-intro", true);
+  html = setHidden(html, "view-type", false);
+  html = setHidden(html, "btn-back-gallery", false);
+  html = setHidden(html, "type-test-cta", false);
+  html = setHidden(html, "share-block", true);
+  html = setHidden(html, "btn-restart", true);
+
+  html = fillById(html, "type-code", escapeText(code));
+  html = fillById(html, "type-name", escapeText(type.name));
+  html = fillById(html, "type-opening", escapeText(type.opening));
+  html = fillById(html, "type-best", escapeText("You are at your best " + type.best));
+  html = fillById(html, "type-undone", escapeText("You come undone " + type.undone));
+  html = fillById(html, "type-chips", listItems(type.chips));
+  html = fillById(html, "type-often", listItems(type.often));
+
+  return html;
+}
+
+function buildSitemap(codes) {
+  const urls = [ORIGIN + "/"].concat(codes.map((c) => ORIGIN + "/" + c.toLowerCase()));
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+  ]
+    .concat(urls.map((u) => "  <url><loc>" + u + "</loc></url>"))
+    .concat(["</urlset>", ""])
+    .join("\n");
+}
+
+function build(outDir) {
+  const indexHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const codes = Object.keys(BY_CODE).sort();
+  if (codes.length !== 16) {
+    throw new Error("build-types: expected 16 types, found " + codes.length);
+  }
+  const written = [];
+  codes.forEach((code) => {
+    const dir = path.join(outDir, code.toLowerCase());
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "index.html");
+    fs.writeFileSync(file, buildPage(indexHtml, code, BY_CODE[code]));
+    written.push(file);
+  });
+  const sitemap = path.join(outDir, "sitemap.xml");
+  fs.writeFileSync(sitemap, buildSitemap(codes));
+  written.push(sitemap);
+  return written;
+}
+
+module.exports = { ORIGIN, escapeText, escapeAttr, titleFor, descriptionFor, buildPage, buildSitemap, build };
+
+if (require.main === module) {
+  const out = path.resolve(process.argv[2] || "public");
+  const written = build(out);
+  process.stdout.write("build-types: wrote " + written.length + " files into " + out + "\n");
+}
