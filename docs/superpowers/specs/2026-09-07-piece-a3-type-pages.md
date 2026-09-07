@@ -1,6 +1,6 @@
 # Piece A3 — Per-type pages
 
-**Status:** designed, not built.
+**Status:** shipped 2026-09-07.
 **Date:** 2026-09-07
 **Parent spec:** `docs/superpowers/specs/2026-09-06-personality-design.md`
 **Live today:** https://personality.ryanxu.dev
@@ -172,6 +172,39 @@ All still bind. Listing the ones this piece is most likely to trip:
    means a real 1200x630 card, and `js/share.js` already knows how to draw one.
    Per-type images would be the strongest possible unfurl. Probably its own
    piece rather than part of A3.
+
+### Rulings, made 2026-09-07
+
+1. **Gallery links: yes, real anchors.** Plain left clicks are intercepted and
+   rendered in place, so a finished result and its share card survive browsing.
+   Modified clicks navigate for real. The generator also writes the sixteen
+   anchors into the static HTML of every page including the root, so the link
+   graph exists without JavaScript, which was the point of the question.
+2. **Type page scope: type content first, test call to action below it.** Shown
+   on any read-only type page, hidden on your own result, where "Start over" and
+   the share block already occupy that slot.
+3. **`og:image`: out of A3, its own piece.** Sixteen rendered cards need
+   `js/share.js` running under a headless browser in CI and their own
+   verification against the unfurl validators. That roughly doubles the piece,
+   and images are worthless without the URLs.
+
+### Amendment to §2.4, made 2026-09-07
+
+The generator also fills each type's body copy into the static HTML and flips
+the view `hidden` attributes, rather than leaving that to JavaScript. Scripts
+are `defer`, so the browser can paint the intro before any JavaScript runs, and
+§6's "no flash of the intro" cannot be guaranteed otherwise. A page whose entire
+content requires a renderer is also a bet, and the thesis here is search traffic.
+
+### Amendment to §2.1, made 2026-09-07 after measuring the live site
+
+The generator emits `<code>.html`, not `<code>/index.html`. Cloudflare Pages
+serves `<name>.html` at the extensionless path with a plain 200, but appends a
+trailing slash to the directory form: the first deploy of A3 answered `/enfj`
+with a 308 to `/enfj/`, which pointed all sixteen canonicals, all seventeen
+sitemap entries and all sixteen anchors at a redirect. The URL scheme in §2.1 is
+unchanged. Only the output filename differs. No local test could see this, since
+a static server happily answers both forms.
 
 ---
 

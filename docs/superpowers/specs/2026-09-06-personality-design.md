@@ -116,10 +116,16 @@ Gallery of all sixteen. This is the second product: most arrivals will never
 take the test, having searched for what their letters mean or to look someone
 up. Sixteen good pages beats one good quiz for traffic.
 
-**NOT IMPLEMENTED as of piece A.** Shipped as one page with sixteen JS-toggled
-views and no routing, so there are no sixteen pages and this thesis is inert.
-Designed as piece A3: `docs/superpowers/specs/2026-09-07-piece-a3-type-pages.md`.
-Do not add the personal-site card until A3 lands.
+**Implemented by piece A3, shipped 2026-09-07.** Each type has its own
+pre-rendered URL at `/<code>`, carrying its own title, description, canonical
+and `og:`/`twitter:` tags in the initial response, and its own copy in static
+HTML that reads without JavaScript. The sixteen are linked from every page, so
+the internal link graph is in the shipped bytes rather than built at runtime.
+Unknown paths return a real 404 instead of 200 with the homepage. Design:
+`docs/superpowers/specs/2026-09-07-piece-a3-type-pages.md`. Plan:
+`docs/superpowers/plans/2026-09-07-piece-a3-type-pages.md`.
+
+The personal-site `projects.ts` card in §11.3 is now unblocked.
 
 ### 5.5 Traits
 
