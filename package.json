@@ -4,7 +4,9 @@
   "private": true,
   "description": "Personality. A four-letter test that tells you which second type is living in your result.",
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "stage": "node scripts/stage.js public",
+    "serve": "node test/serve.js public"
   },
   "devDependencies": {
     "playwright": "1.62.1"

@@ -21,8 +21,12 @@
 # of which upload path wrangler takes. This file is kept anyway, in case a
 # future wrangler version reads it, and to document exactly what must never
 # be public.
+#
+# scripts/stage.js is what actually enforces this allowlist now, and
+# test/stage.test.js asserts it.
 docs/
 test/
+scripts/
 .github/
 package.json
 .gitignore
