@@ -475,11 +475,21 @@ test("returning to the intro puts the address bar back at the root", { skip: !ch
     assert.strictEqual(new URL(page.url()).pathname, "/" + code.toLowerCase());
 
     /* Back out of the gallery onto a result, which already owns this URL.
-       This checks the end state only. It does not prove the intro guard in
-       the handler: renderType replaces the URL and the title again on the
-       very same render, so dropping that guard is invisible from here. What
-       it does catch is a stray history entry, which is why the length is
-       checked too. */
+       This checks the end state, plus the history length, which is what
+       catches a push where a replace belongs.
+
+       It does NOT cover the flow.state().view === "intro" guard in
+       btnBackFlow, and no test here does. That guard is reachable, and this
+       is the sequence: deep link /enfj, take the test, answer a few, press
+       browser Back to return to /enfj, then See all sixteen, then Back. The
+       flow is on the question view, so the guard blocks the rewrite and the
+       question view is left sitting under /enfj titled "Warm Front (ENFJ)".
+       Measured, not reasoned about.
+
+       That mismatch is what btnBackFlow did before this piece touched it, so
+       the guard preserves the old behavior on that path rather than adding a
+       new fault. It is a known follow-up, and the guard stays because the
+       brief specified it. Do not read the assertions below as covering it. */
     const lenOnResult = await page.evaluate(() => history.length);
     await page.click("#btn-nav-sixteen");
     await page.waitForSelector("#view-sixteen:not([hidden])");
