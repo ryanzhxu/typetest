@@ -53,6 +53,13 @@ in you too."
    allowed in body copy only: adjective plus noun, ® on first use, with a
    visible non-affiliation line. Search traffic comes from page content, not
    from the domain, and content is where fair use actually protects us.
+
+   **Amended 2026-09-07: the non-affiliation line is removed, by decision.**
+   It was raised as this constraint's stated mitigation and removed anyway,
+   knowingly. The rest of the constraint stands and is unchanged: the mark is
+   still named nowhere in a title, `og:title`, filename or domain. What is
+   gone is the visible line at the foot of every page. If a nominative-use
+   question is ever put to us, this is the paragraph to reread.
 2. **Every item is self-authored.** No item, phrasing, or type name is taken
    from any existing instrument. Public-domain sources (IPIP, CAT-PD-SF) may be
    used as a starting point for the trait section only, rewritten.
@@ -185,6 +192,29 @@ Motion sits at 3 while answering and 7 at the reveal. Density 3.
 Locales: `en`, `zh-Hans`, `zh-Hant-TW`, `zh-Hant-HK`. Region tags always, never
 a bare `zh-Hant`. Hong Kong is written Cantonese 口語, not Traditional Mandarin.
 
+**Amended 2026-09-07: two locales, and Hong Kong is 書面語, not 口語.**
+
+Two locales ship, not four: `en` and `zh-Hant-HK`. `zh-Hans` and `zh-Hant-TW`
+are dropped from the plan. They can be added later and each would pay its own
+transcreation pass, which is understood.
+
+The register for `zh-Hant-HK` is corrected. It is **Standard Written Chinese
+in Traditional characters with Hong Kong conventions**, which is what Hong
+Kong newspapers, government and formal writing actually use. It is *not*
+written Cantonese.
+
+- Hong Kong glyph and word choices: 裏 over 裡, 着 over 著, 網絡 over 網路,
+  質素 over 素質.
+- Standard written grammar throughout. None of 佢, 咗, 嘅, 冇, 睇, 喺, 嘢.
+- The six regional type names this section previously named as the reason for
+  a Cantonese locale (避風塘, 搞手, 冇迫力, 加場, 星期日下晝, 拆嘢佬) must be
+  re-decided against this register. 避風塘 survives, being an ordinary written
+  noun. 拆嘢佬 and 冇迫力 do not, being Cantonese.
+
+`check-locales.js` inverts accordingly. Its Hong Kong direction previously
+guarded *for* Cantonese vocabulary and must now guard *against* it, while
+still catching Taiwan Mandarin word choices and Simplified glyphs.
+
 Each locale is written by hand from the English meaning. Nothing is converted
 from anything else. Six of the sixteen type names have a genuinely better
 regional word (避風塘, 搞手, 冇迫力, 加場, 星期日下晝, 拆嘢佬) and a glyph
@@ -239,6 +269,14 @@ The bulk of this project is writing, not code.
 | Interface strings | ~60 | ~240 |
 | **Total** | **~436** | **~1,744** |
 
+**Amended 2026-09-07.** Two things move this table. The type pages grew five
+sections of three paragraphs each, which is 240 more paragraphs and 8,587 more
+English words, and the locale count fell from four to two. Per locale the type
+pages are now the overwhelming majority of the writing, and the two-locale
+total is roughly 20,000 words rather than the 1,744 strings above. The five
+section headings are stored once in `SG.types.SECTIONS`, so they are five
+strings per locale and not eighty.
+
 Roughly 1,100 of those are voice-heavy and cannot be machine translated. The
 sixteen type names and the asterisk paragraph set the voice for everything else
 and should be settled first.
@@ -256,6 +294,12 @@ you can take end to end.
 **B. The four locales.** The i18n runtime, the three Chinese dictionaries,
 `check-locales.js` in CI, region fonts. Depends on A having frozen its string
 keys, otherwise every key change costs four edits.
+
+**Amended 2026-09-07: B is now one locale, `zh-Hant-HK`, and it is next.**
+A, A3 and the deeper type pages have shipped, so the string keys are frozen
+and the content that B has to carry is finished. This is the order the rule
+below asks for: the sections were deepened before B rather than after, so
+they get written once in each language instead of twice.
 
 **C. The sixteen type pages.** The largest writing job, ~960 of the ~1,744
 strings. Independent of A and B once the page template exists, and can run in
