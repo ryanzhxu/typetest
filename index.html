@@ -29,13 +29,14 @@
 
     <section id="view-question" class="view" hidden>
       <div class="question-card">
+        <h2 id="q-heading" class="visually-hidden">Question</h2>
         <p id="q-progress" class="progress-text" aria-live="polite"></p>
         <div class="statement-pair">
-          <p id="q-statement-a" class="statement statement-a"></p>
-          <p id="q-statement-b" class="statement statement-b"></p>
+          <p id="q-statement-a" class="statement statement-a" aria-live="polite"></p>
+          <p id="q-statement-b" class="statement statement-b" aria-live="polite"></p>
         </div>
         <input type="range" id="q-slider" min="1" max="7" step="1" value="4"
-               aria-label="Move toward whichever statement fits better">
+               aria-label="Move toward whichever statement fits better" aria-valuetext="Somewhere in the middle">
         <p id="q-feedback" class="feedback-text" aria-live="polite"></p>
         <div class="question-actions">
           <button type="button" id="btn-skip" class="btn btn-ghost">Neither, really</button>

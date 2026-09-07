@@ -8,7 +8,7 @@
     var index = 0;
     var responses = {};    /* axis -> array of number|null */
     var result = null;
-    var phase = "core";    /* core | tiebreak */
+    var tiebroken = {};    /* axis -> true once its tiebreak has been run */
 
     function resetResponses() {
       responses = {};
@@ -59,6 +59,7 @@
 
     function record(value) {
       var item = queue[index];
+      if (!item) { return; }
       responses[item.axis].push(value);
       index += 1;
       if (index >= queue.length) { compute(); }
@@ -79,8 +80,8 @@
         resetResponses();
         queue = SG.items.core.slice();
         index = 0;
-        phase = "core";
         result = null;
+        tiebroken = {};
         view = "question";
       },
       answer: function (value) { record(value); },
@@ -88,20 +89,23 @@
       settle: function () {
         if (!result || !result.closeAxis) { return; }
         var axis = result.closeAxis;
+        if (tiebroken[axis]) { return; }
+        tiebroken[axis] = true;
         queue = SG.items.tiebreak.filter(function (it) { return it.axis === axis; });
         index = 0;
-        phase = "tiebreak";
         view = "question";
+      },
+      canSettle: function () {
+        return !!(result && result.closeAxis && !tiebroken[result.closeAxis]);
       },
       keepBoth: function () { view = "type"; },
       openType: function () { view = "type"; },
-      phase: function () { return phase; },
       reset: function () {
         view = "intro";
         queue = [];
         index = 0;
         result = null;
-        phase = "core";
+        tiebroken = {};
         resetResponses();
       }
     };

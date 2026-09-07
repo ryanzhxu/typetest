@@ -133,6 +133,7 @@
       pendingValue = value;
       el.qSlider.value = String(value);
       el.qFeedback.textContent = FEEDBACK[value - 1];
+      el.qSlider.setAttribute("aria-valuetext", FEEDBACK[value - 1]);
     }
 
     function renderQuestion() {
@@ -168,6 +169,7 @@
         el.blendPeach.style.width = yourShare + "%";
         el.blendLilac.style.width = (100 - yourShare) + "%";
         el.secondSelfCard.hidden = false;
+        el.btnSettle.hidden = !flow.canSettle();
         el.btnContinue.hidden = true;
       } else {
         el.secondSelfCard.hidden = true;
