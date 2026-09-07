@@ -99,9 +99,14 @@ people answer to confirm what they can see. Removing it makes the test calmer
 *and* more accurate, which is a rare trade.
 
 - Slider gives word feedback about the answer just given, never about the type.
-- Progress reads "Nine down, twenty-seven to go" in English and "做咗 9 題，仲有
-  27 題" in Chinese. Words in English because it sounds like a person; digits in
-  Chinese because spelled-out numerals look strange.
+- Progress reads "Nine down, twenty-seven to go" in English and uses digits in
+  Chinese. Words in English because it sounds like a person; digits in Chinese
+  because spelled-out numerals look strange.
+
+  **Amended 2026-09-07.** The example here was "做咗 9 題，仲有 27 題", which is
+  Cantonese (做咗, 仲有) and contradicts the register correction in section 7.
+  The 書面語 wording is still to be decided, along the lines of "已完成 9 題，
+  尚餘 27 題". Do not copy the old example.
 - Whole flow is keyboard-operable.
 
 ### 5.2 The reveal
