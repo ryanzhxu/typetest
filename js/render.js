@@ -72,6 +72,8 @@
       typeOften: document.getElementById("type-often"),
       shareBlock: document.getElementById("share-block"),
       btnRestart: document.getElementById("btn-restart"),
+      typeTestCta: document.getElementById("type-test-cta"),
+      btnTakeTest: document.getElementById("btn-take-test"),
 
       btnBackFlow: document.getElementById("btn-back-flow"),
       galleryGrid: document.getElementById("gallery-grid")
@@ -91,16 +93,46 @@
        "type" while reading one type's page read-only (navCode names it). */
     var nav = null;
     var navCode = null;
+
+    /* Generated per-type pages carry data-initial-type, so /enfj opens on the
+       type view. The generator has already flipped the hidden attributes, so
+       there is nothing to paint over: this only tells the JS which page it is
+       on. An unknown value falls through to the intro rather than throwing. */
+    var initialType = document.body.getAttribute("data-initial-type");
+    if (initialType && SG.types.byCode[initialType]) {
+      nav = "type";
+      navCode = initialType;
+    }
+    var INITIAL_NAV = nav;
+    var INITIAL_CODE = navCode;
+
     var pendingValue = 4;
     var activeView = "intro";
+    var firstRender = true;
+
+    /* file:// has an opaque origin, so the History API throws there. The site
+       must still open by double-clicking index.html, so every call is wrapped
+       and the app carries on without a URL change. */
+    function setUrl(pathname, state, replace) {
+      try {
+        history[replace ? "replaceState" : "pushState"](state, "", pathname);
+      } catch (e) {
+        /* filesystem or sandboxed origin. The view is already correct. */
+      }
+    }
 
     /* ---- gallery grid, built once from static data ---- */
+
+    /* Real anchors, not buttons. A crawler needs links to find the sixteen
+       pages, and middle-click and "copy link address" should work. A plain
+       left click is still handled in place, so flow state survives browsing:
+       a full page load here would throw away someone's finished result. */
     Object.keys(SG.types.byCode).sort().forEach(function (code) {
       var t = SG.types.byCode[code];
       var li = document.createElement("li");
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "gallery-card";
+      var a = document.createElement("a");
+      a.className = "gallery-card";
+      a.href = "/" + code.toLowerCase();
 
       var codeEl = document.createElement("span");
       codeEl.className = "gallery-code";
@@ -114,16 +146,20 @@
       lineEl.className = "gallery-line";
       lineEl.textContent = t.line;
 
-      btn.appendChild(codeEl);
-      btn.appendChild(nameEl);
-      btn.appendChild(lineEl);
-      btn.addEventListener("click", function () {
+      a.appendChild(codeEl);
+      a.appendChild(nameEl);
+      a.appendChild(lineEl);
+      a.addEventListener("click", function (e) {
+        /* Never swallow a modified click: those mean "open it properly". */
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
+        e.preventDefault();
         nav = "type";
         navCode = code;
+        setUrl("/" + code.toLowerCase(), { view: "type", code: code });
         render();
       });
 
-      li.appendChild(btn);
+      li.appendChild(a);
       el.galleryGrid.appendChild(li);
     });
 
@@ -204,6 +240,7 @@
       if (nav === "type") {
         renderTypeContent(navCode);
         el.btnBackGallery.hidden = false;
+        el.typeTestCta.hidden = false;
         el.shareBlock.hidden = true;
         el.btnRestart.hidden = true;
         return;
@@ -212,8 +249,13 @@
       if (!result) { return; }
       renderTypeContent(result.code);
       el.btnBackGallery.hidden = true;
+      /* Start over and the share card already occupy this slot on a result. */
+      el.typeTestCta.hidden = true;
       el.shareBlock.hidden = false;
       el.btnRestart.hidden = false;
+      /* The result now has an address worth sending. replaceState, not push,
+         so Back does not walk the reveal again. */
+      setUrl("/" + result.code.toLowerCase(), { view: "result" }, true);
       if (SG.share && SG.share.setResult) { SG.share.setResult(result); }
     }
 
@@ -243,6 +285,11 @@
       else if (activeView === "reveal") { renderReveal(); }
       else if (activeView === "type") { renderType(); }
 
+      /* Moving focus is right when a view changes under the reader. It is
+         wrong on the very first paint of a deep-linked page, where nothing
+         changed and the reader has not acted yet. */
+      if (firstRender && INITIAL_NAV === "type") { firstRender = false; return; }
+      firstRender = false;
       focusView(activeView);
     }
 
@@ -302,6 +349,33 @@
 
     el.btnBackFlow.addEventListener("click", function () {
       nav = null;
+      render();
+    });
+
+    el.btnTakeTest.addEventListener("click", function () {
+      nav = null;
+      navCode = null;
+      /* pushState, so Back returns to the type page they came from. */
+      setUrl("/", { view: "flow" });
+      flow.start();
+      render();
+    });
+
+    /* The gallery overlay has no URL of its own in this piece, so only real
+       type pages and the root create history entries. A null state means the
+       entry this page was loaded on. */
+    window.addEventListener("popstate", function (e) {
+      var s = e.state;
+      if (s && s.view === "type") {
+        nav = "type";
+        navCode = s.code;
+      } else if (s && (s.view === "result" || s.view === "flow")) {
+        nav = null;
+        navCode = null;
+      } else {
+        nav = INITIAL_NAV;
+        navCode = INITIAL_CODE;
+      }
       render();
     });
 
