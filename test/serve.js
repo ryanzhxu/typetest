@@ -22,7 +22,14 @@ const TYPES = {
 };
 
 function resolveFile(root, urlPath) {
-  const clean = decodeURIComponent(urlPath.split("?")[0].split("#")[0]);
+  const rawPath = urlPath.split("?")[0].split("#")[0];
+  let clean;
+  try {
+    clean = decodeURIComponent(rawPath);
+  } catch (e) {
+    if (e instanceof URIError) { return null; }
+    throw e;
+  }
   const target = path.resolve(root, "." + (clean === "/" ? "/index.html" : clean));
   if (target !== root && !target.startsWith(root + path.sep)) { return null; }
 

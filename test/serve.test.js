@@ -4,6 +4,7 @@ const assert = require("node:assert");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const http = require("node:http");
 const serve = require("./serve.js");
 
 function fixture() {
@@ -21,6 +22,21 @@ function fixture() {
 async function get(base, p) {
   const res = await fetch(base + p);
   return { status: res.status, type: res.headers.get("content-type"), body: await res.text() };
+}
+
+/* fetch() runs its path through the WHATWG URL parser, which collapses
+   ".." segments before the request is ever sent, so it cannot exercise a
+   traversal attempt. http.request's `path` option is not normalized: it
+   goes over the wire exactly as given. */
+function rawGet(port, rawPath) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ port, path: rawPath }, (res) => {
+      res.resume();
+      res.on("end", () => resolve({ status: res.statusCode }));
+    });
+    req.on("error", reject);
+    req.end();
+  });
 }
 
 /* The smoke tests in test/smoke.test.js rest on this server. A server that
@@ -72,9 +88,47 @@ test("the test server returns a real 404, with the 404 page as the body", async 
 test("the test server refuses to escape its root", async () => {
   const dir = fixture();
   const server = await serve.start(dir);
+  /* A canary file one directory above root, reachable with a single "..".
+     A literal path like "/../../etc/passwd" is not a portable proof: how
+     many ".." it takes to reach a real filesystem file depends on how deep
+     os.tmpdir() nests on the machine running the test (two levels reaches
+     real /etc on a typical Linux /tmp, but not on macOS's deeper
+     /var/folders/... tmpdir, verified by hand on this checkout). A sibling
+     temp directory is exactly one level up from root on every platform. */
+  const canaryDir = fs.mkdtempSync(path.join(os.tmpdir(), "a3-canary-"));
+  fs.writeFileSync(path.join(canaryDir, "secret.txt"), "should not be reachable");
+  const escapePath = "/../" + path.basename(canaryDir) + "/secret.txt";
   try {
-    const escaped = await get(server.url, "/../../etc/passwd");
+    /* Unit-level proof that the guard in resolveFile fires: fetch() would
+       normalize this path before the server ever saw it, which would make
+       an equivalent assertion pass even with the guard clause deleted. */
+    assert.strictEqual(
+      serve.resolveFile(dir, escapePath), null,
+      "resolveFile must not resolve a path outside its root"
+    );
+
+    /* Over-the-wire proof, sent unnormalized via http.request. */
+    const escaped = await rawGet(server.port, escapePath);
     assert.strictEqual(escaped.status, 404);
+  } finally {
+    await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(canaryDir, { recursive: true, force: true });
+  }
+});
+
+test("a malformed percent-encoded path 404s instead of crashing the server", async () => {
+  const dir = fixture();
+  const server = await serve.start(dir);
+  try {
+    const malformed = await get(server.url, "/%");
+    assert.strictEqual(malformed.status, 404, "malformed percent-encoding must 404, not throw");
+
+    /* The part that matters: the server must still be alive and serving
+       afterward, not dead from an uncaught exception in the request
+       callback. */
+    const stillAlive = await get(server.url, "/");
+    assert.strictEqual(stillAlive.body, "<p>root</p>", "the server must still serve requests after a malformed one");
   } finally {
     await server.close();
     fs.rmSync(dir, { recursive: true, force: true });

@@ -157,6 +157,7 @@ main {
 /* ---------- Buttons and links ---------- */
 
 .btn {
+  display: inline-block;
   appearance: none;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
