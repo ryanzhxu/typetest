@@ -309,7 +309,15 @@ In the existing `.gallery-card` rule, the cards become `<a>` elements in Task 3,
   text-decoration: none;
 ```
 
-Leave every other declaration in `.gallery-card` alone. `a:focus-visible` is already covered by the existing rule at line 104, and `min-height: 44px` already satisfies the target-size constraint.
+Leave every other declaration in `.gallery-card` alone.
+
+Also add one declaration to the existing `.btn` rule (around line 159):
+
+```css
+  display: inline-block;
+```
+
+`.btn` sets `min-height: 44px`, but `min-height` does not apply to non-replaced inline boxes, and `404.html` styles an `<a>` as a button. Every existing `.btn` is a `<button>`, already `inline-block`, so this is a no-op for them and closes the accessibility gap for the anchor. `a:focus-visible` is already covered by the existing rule at line 104, and `min-height: 44px` already satisfies the target-size constraint.
 
 - [ ] **Step 6: Run the test and the whole suite**
 
@@ -978,7 +986,7 @@ Then click "See all sixteen" and click a card. Expected: the type renders in pla
 - [ ] **Step 7: Verify by hand, over HTTP, that the URL actually changes**
 
 ```bash
-node -e "const h=require('node:http'),f=require('node:fs'),p=require('node:path');h.createServer((q,s)=>{let u=q.url.split('?')[0];let fp=p.join(process.cwd(),u==='/'?'index.html':u);try{s.writeHead(200,{'content-type':u.endsWith('.css')?'text/css':u.endsWith('.js')?'text/javascript':'text/html'});s.end(f.readFileSync(fp));}catch(e){s.writeHead(404);s.end('nope');}}).listen(8788,()=>console.log('http://localhost:8788'))"
+node -e "const h=require('node:http'),f=require('node:fs'),p=require('node:path');h.createServer((q,s)=>{let u=q.url.split('?')[0];let fp=p.join(process.cwd(),u==='/'?'index.html':u);let b;try{b=f.readFileSync(fp);}catch(e){s.writeHead(404);s.end('nope');return;}s.writeHead(200,{'content-type':u.endsWith('.css')?'text/css':u.endsWith('.js')?'text/javascript':'text/html'});s.end(b);}).listen(8788,()=>console.log('http://localhost:8788'))"
 ```
 
 Open `http://localhost:8788`, take the test, and confirm the address bar reads `/<code>` in lowercase on the result page. Then click through to the gallery and a card, and confirm the address bar follows and that browser Back returns you to your result with the share block intact.
@@ -1029,6 +1037,7 @@ const assert = require("node:assert");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const http = require("node:http");
 const serve = require("./serve.js");
 
 function fixture() {
@@ -1094,12 +1103,58 @@ test("the test server returns a real 404, with the 404 page as the body", async 
   }
 });
 
+/* fetch() runs its path through the WHATWG URL parser, which collapses ".."
+   segments before the request is ever sent, so it cannot exercise a traversal
+   attempt at all. http.request's `path` option is not normalized: it goes
+   over the wire exactly as given. */
+function rawGet(port, rawPath) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ port, path: rawPath }, (res) => {
+      res.resume();
+      res.on("end", () => resolve({ status: res.statusCode }));
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 test("the test server refuses to escape its root", async () => {
   const dir = fixture();
   const server = await serve.start(dir);
+  /* A canary file one directory above root, reachable with a single "..".
+     A literal path like "/../../etc/passwd" is not a portable proof: how many
+     ".." it takes to reach a real file depends on how deep os.tmpdir() nests.
+     A sibling temp directory is exactly one level up on every platform. */
+  const canaryDir = fs.mkdtempSync(path.join(os.tmpdir(), "a3-canary-"));
+  fs.writeFileSync(path.join(canaryDir, "secret.txt"), "should not be reachable");
+  const escapePath = "/../" + path.basename(canaryDir) + "/secret.txt";
   try {
-    const escaped = await get(server.url, "/../../etc/passwd");
+    /* Unit-level proof that the guard fires. An equivalent assertion made
+       through fetch() would pass even with the guard clause deleted. */
+    assert.strictEqual(
+      serve.resolveFile(dir, escapePath), null,
+      "resolveFile must not resolve a path outside its root"
+    );
+    /* Over-the-wire proof, sent unnormalized. */
+    const escaped = await rawGet(server.port, escapePath);
     assert.strictEqual(escaped.status, 404);
+  } finally {
+    await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(canaryDir, { recursive: true, force: true });
+  }
+});
+
+test("a malformed percent-encoded path 404s instead of crashing the server", async () => {
+  const dir = fixture();
+  const server = await serve.start(dir);
+  try {
+    const malformed = await get(server.url, "/%");
+    assert.strictEqual(malformed.status, 404, "malformed percent-encoding must 404, not throw");
+    /* The half that matters: the server must still be alive afterward, not
+       dead from an uncaught exception in the request callback. */
+    const stillAlive = await get(server.url, "/");
+    assert.strictEqual(stillAlive.body, "<p>root</p>", "the server must still serve after a malformed request");
   } finally {
     await server.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -1141,7 +1196,17 @@ const TYPES = {
 };
 
 function resolveFile(root, urlPath) {
-  const clean = decodeURIComponent(urlPath.split("?")[0].split("#")[0]);
+  const rawPath = urlPath.split("?")[0].split("#")[0];
+  let clean;
+  /* A stray "%" makes decodeURIComponent throw URIError. This runs
+     synchronously inside the request callback, so an uncaught throw here
+     kills the whole process instead of 404ing one request. */
+  try {
+    clean = decodeURIComponent(rawPath);
+  } catch (e) {
+    if (e instanceof URIError) { return null; }
+    throw e;
+  }
   const target = path.resolve(root, "." + (clean === "/" ? "/index.html" : clean));
   if (target !== root && !target.startsWith(root + path.sep)) { return null; }
 
