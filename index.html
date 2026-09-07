@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Personality</title>
-  <meta name="description" content="A four-letter test that tells you which second type is living in your result.">
-
   <!-- The project also answers on its assigned *.pages.dev address, which cannot
        be removed: Pages subdomains are globally unique and personality.pages.dev
        was already taken. This canonical is what stops the two origins competing
        for the same queries. -->
+  <!-- Everything between these markers is replaced per type by
+       scripts/build-types.js. Keep each tag on one line, exactly once, and
+       inside the markers. test/index-html.test.js enforces that. -->
+  <!-- BUILD:HEAD:START -->
+  <title>Personality</title>
+  <meta name="description" content="A four-letter test that tells you which second type is living in your result.">
   <link rel="canonical" href="https://personality.ryanxu.dev/">
-
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://personality.ryanxu.dev/">
   <meta property="og:site_name" content="Personality">
@@ -20,6 +22,7 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Personality">
   <meta name="twitter:description" content="A four-letter test that tells you which second type is living in your result.">
+  <!-- BUILD:HEAD:END -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
@@ -100,6 +103,11 @@
           <p class="often-label">Often typed this way</p>
           <ul id="type-often" class="pill-list"></ul>
           <p class="asterisk-paragraph"><span aria-hidden="true">* </span>These are guesses, and we would rather say so. Not one of these people has sat the official test and published the result. Every celebrity list on the internet, ours included, is fans voting on strangers. Enjoy it as that.</p>
+        </div>
+
+        <div id="type-test-cta" class="test-cta" hidden>
+          <p class="test-cta-line">Not sure this is you?</p>
+          <button type="button" id="btn-take-test" class="btn btn-primary">Take the test</button>
         </div>
 
         <div id="share-block" class="share-block">
