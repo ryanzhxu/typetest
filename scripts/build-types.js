@@ -84,11 +84,49 @@ function listItems(values) {
   return values.map((v) => "<li>" + escapeText(v) + "</li>").join("");
 }
 
+/* The sixteen cards, rendered into the static HTML in the same sorted order
+   and with the same structure js/render.js builds, so a crawler sees the
+   links without running any JavaScript and the two never disagree. */
+function galleryItems(byCode) {
+  return Object.keys(byCode).sort().map(function (code) {
+    const t = byCode[code];
+    return '<li><a class="gallery-card" href="/' + code.toLowerCase() + '">' +
+      '<span class="gallery-code">' + escapeText(code) + "</span>" +
+      '<span class="gallery-name">' + escapeText(t.name) + "</span>" +
+      '<span class="gallery-line">' + escapeText(t.line) + "</span>" +
+      "</a></li>";
+  }).join("");
+}
+
+/* The comment naming the generator and its contract test is for whoever edits
+   index.html. It names private paths, so it does not belong on a public page.
+   The pages.dev canonical comment above it explains a real thing to a real
+   reader and stays. */
+function dropBuildComment(html) {
+  return replaceOnce(
+    html,
+    /\n  <!-- Everything between these markers[\s\S]*?-->/,
+    () => "",
+    "build-internals comment"
+  );
+}
+
+/* The root page is generated too, and only so it carries the sixteen links.
+   / is the page a crawler reaches first, and without this it would be the one
+   page on the site with no outbound links. Everything else about it, the head,
+   the <body> tag, every view's hidden state and the relative asset paths that
+   let index.html open from the filesystem, is left exactly as it is. */
+function buildRoot(indexHtml) {
+  let html = dropBuildComment(indexHtml);
+  html = fillById(html, "gallery-grid", galleryItems(BY_CODE));
+  return html;
+}
+
 function buildPage(indexHtml, code, type) {
   if (!/^[A-Z]{4}$/.test(code) || !BY_CODE[code]) {
     throw new Error("build-types: unknown type code " + code);
   }
-  let html = indexHtml;
+  let html = dropBuildComment(indexHtml);
 
   html = replaceOnce(
     html,
@@ -122,6 +160,7 @@ function buildPage(indexHtml, code, type) {
   html = fillById(html, "type-undone", escapeText("You come undone " + type.undone));
   html = fillById(html, "type-chips", listItems(type.chips));
   html = fillById(html, "type-often", listItems(type.often));
+  html = fillById(html, "gallery-grid", galleryItems(BY_CODE));
 
   return html;
 }
@@ -151,13 +190,22 @@ function build(outDir) {
     fs.writeFileSync(file, buildPage(indexHtml, code, BY_CODE[code]));
     written.push(file);
   });
+  /* stage.js copies index.html first and then calls build(), so this
+     deliberately overwrites the verbatim copy. Do not reorder those two. */
+  const rootFile = path.join(outDir, "index.html");
+  fs.writeFileSync(rootFile, buildRoot(indexHtml));
+  written.push(rootFile);
+
   const sitemap = path.join(outDir, "sitemap.xml");
   fs.writeFileSync(sitemap, buildSitemap(codes));
   written.push(sitemap);
   return written;
 }
 
-module.exports = { ORIGIN, escapeText, escapeAttr, titleFor, descriptionFor, buildPage, buildSitemap, build };
+module.exports = {
+  ORIGIN, escapeText, escapeAttr, titleFor, descriptionFor,
+  galleryItems, buildRoot, buildPage, buildSitemap, build
+};
 
 if (require.main === module) {
   const out = path.resolve(process.argv[2] || "public");

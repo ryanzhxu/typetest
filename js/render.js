@@ -110,10 +110,22 @@
     var activeView = "intro";
     var firstRender = true;
 
+    var ROOT_TITLE = "Personality";
+
+    /* Same format as the generator's titleFor, so a client-side visit to /infj
+       and a fresh load of /infj name the tab identically. */
+    function titleForCode(code) {
+      var t = SG.types.byCode[code];
+      return t ? t.name + " (" + code + ")" : ROOT_TITLE;
+    }
+
     /* file:// has an opaque origin, so the History API throws there. The site
        must still open by double-clicking index.html, so every call is wrapped
-       and the app carries on without a URL change. */
-    function setUrl(pathname, state, replace) {
+       and the app carries on without a URL change. The title is set outside
+       the try: the tab, the bookmark name and every entry in the Back menu
+       are this string, and it must be right even where history is not. */
+    function setUrl(pathname, state, replace, title) {
+      document.title = title;
       try {
         history[replace ? "replaceState" : "pushState"](state, "", pathname);
       } catch (e) {
@@ -127,6 +139,11 @@
        pages, and middle-click and "copy link address" should work. A plain
        left click is still handled in place, so flow state survives browsing:
        a full page load here would throw away someone's finished result. */
+
+    /* The generator ships these sixteen cards in the static HTML so a crawler
+       sees them. Clear them before rebuilding, or every card would appear
+       twice. Rebuilding identical anchors is what attaches the listeners. */
+    el.galleryGrid.innerHTML = "";
     Object.keys(SG.types.byCode).sort().forEach(function (code) {
       var t = SG.types.byCode[code];
       var li = document.createElement("li");
@@ -155,7 +172,7 @@
         e.preventDefault();
         nav = "type";
         navCode = code;
-        setUrl("/" + code.toLowerCase(), { view: "type", code: code });
+        setUrl("/" + code.toLowerCase(), { view: "type", code: code }, false, titleForCode(code));
         render();
       });
 
@@ -255,7 +272,8 @@
       el.btnRestart.hidden = false;
       /* The result now has an address worth sending. replaceState, not push,
          so Back does not walk the reveal again. */
-      setUrl("/" + result.code.toLowerCase(), { view: "result" }, true);
+      setUrl("/" + result.code.toLowerCase(), { view: "result", code: result.code }, true,
+        titleForCode(result.code));
       if (SG.share && SG.share.setResult) { SG.share.setResult(result); }
     }
 
@@ -333,6 +351,10 @@
     el.btnRestart.addEventListener("click", function () {
       nav = null;
       flow.reset();
+      /* The result's URL no longer describes what is on screen, and a reload
+         would hand back that type page instead of the test. replaceState, not
+         push, so Back does not walk into the result they just discarded. */
+      setUrl("/", { view: "flow" }, true, ROOT_TITLE);
       render();
     });
 
@@ -349,6 +371,12 @@
 
     el.btnBackFlow.addEventListener("click", function () {
       nav = null;
+      /* Back lands on whatever the flow is showing. Only the intro has a URL
+         of its own, so only then is the address bar wrong. Mid-test or on a
+         result, leave it alone: renderType owns the result's URL. */
+      if (flow.state().view === "intro") {
+        setUrl("/", { view: "flow" }, true, ROOT_TITLE);
+      }
       render();
     });
 
@@ -356,7 +384,7 @@
       nav = null;
       navCode = null;
       /* pushState, so Back returns to the type page they came from. */
-      setUrl("/", { view: "flow" });
+      setUrl("/", { view: "flow" }, false, ROOT_TITLE);
       flow.start();
       render();
     });
@@ -369,12 +397,19 @@
       if (s && s.view === "type") {
         nav = "type";
         navCode = s.code;
-      } else if (s && (s.view === "result" || s.view === "flow")) {
+        document.title = titleForCode(s.code);
+      } else if (s && s.view === "result") {
         nav = null;
         navCode = null;
+        document.title = titleForCode(s.code);
+      } else if (s && s.view === "flow") {
+        nav = null;
+        navCode = null;
+        document.title = ROOT_TITLE;
       } else {
         nav = INITIAL_NAV;
         navCode = INITIAL_CODE;
+        document.title = INITIAL_NAV === "type" ? titleForCode(INITIAL_CODE) : ROOT_TITLE;
       }
       render();
     });

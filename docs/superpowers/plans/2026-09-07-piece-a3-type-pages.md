@@ -317,7 +317,7 @@ Also add one declaration to the existing `.btn` rule (around line 159):
   display: inline-block;
 ```
 
-`.btn` sets `min-height: 44px`, but `min-height` does not apply to non-replaced inline boxes, and `404.html` styles an `<a>` as a button. Every existing `.btn` is a `<button>`, already `inline-block`, so this is a no-op for them and closes the accessibility gap for the anchor. `a:focus-visible` is already covered by the existing rule at line 104, and `min-height: 44px` already satisfies the target-size constraint.
+`.btn` sets `min-height: 44px`, but `min-height` does not apply to non-replaced inline boxes, and `404.html` styles an `<a>` as a button. Every existing `.btn` is a `<button>`, already `inline-block`, so this is a no-op for them. It is defensive for the anchor rather than load-bearing: that anchor's parent is a flex container, which already blockifies it and so already guarantees the 44px size here. Keep the declaration for the next `.btn` anchor placed outside a flex or grid parent. `a:focus-visible` is already covered by the existing rule at line 104, and `min-height: 44px` already satisfies the target-size constraint.
 
 - [ ] **Step 6: Run the test and the whole suite**
 

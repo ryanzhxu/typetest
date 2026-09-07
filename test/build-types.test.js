@@ -192,12 +192,12 @@ test("the sitemap lists the root plus all sixteen, and nothing else", () => {
   assert.ok(xml.trim().endsWith("</urlset>"));
 });
 
-test("build() writes sixteen directories and a sitemap and nothing else", () => {
+test("build() writes sixteen directories, a root page and a sitemap, and nothing else", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "a3-build-"));
   try {
     gen.build(dir);
     const entries = fs.readdirSync(dir).sort();
-    const expected = CODES.map((c) => c.toLowerCase()).concat(["sitemap.xml"]).sort();
+    const expected = CODES.map((c) => c.toLowerCase()).concat(["index.html", "sitemap.xml"]).sort();
     assert.deepStrictEqual(entries, expected);
     CODES.forEach((code) => {
       const p = path.join(dir, code.toLowerCase(), "index.html");
@@ -207,4 +207,47 @@ test("build() writes sixteen directories and a sitemap and nothing else", () => 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+/* The whole point of the piece is that the sixteen pages get found. A sitemap
+   is a hint; internal links are how a crawler actually reaches them. Assert
+   the links exist in the HTML, before any JavaScript runs. */
+function galleryHrefsOf(html) {
+  return (html.match(/<a class="gallery-card" href="\/[a-z]{4}">/g) || [])
+    .map((s) => s.slice(s.indexOf('href="/') + 7, -2));
+}
+
+test("every generated page, root included, links to all sixteen type pages", () => {
+  const expected = CODES.map((c) => c.toLowerCase()).sort();
+  const pages = CODES.map((c) => pageFor(c)).concat([gen.buildRoot(INDEX)]);
+  pages.forEach((html, i) => {
+    const label = i < CODES.length ? CODES[i] : "the root page";
+    const hrefs = galleryHrefsOf(html);
+    assert.strictEqual(hrefs.length, 16, label + " must carry sixteen gallery links, got " + hrefs.length);
+    assert.strictEqual(new Set(hrefs).size, 16, label + " repeated a gallery link");
+    assert.deepStrictEqual(hrefs.slice().sort(), expected, label + " linked the wrong set of codes");
+  });
+});
+
+test("the root page is index.html plus the links, and nothing else", () => {
+  const root = gen.buildRoot(INDEX);
+  assert.ok(root.includes("<title>Personality</title>"), "the root keeps its own head");
+  assert.ok(root.includes('<link rel="canonical" href="' + gen.ORIGIN + '/">'), "the root keeps its canonical");
+  assert.ok(root.includes("<body>"), "the root body tag must stay bare");
+  assert.ok(!root.includes("data-initial-type"), "the root is not a type page");
+  assert.match(root, /<section id="view-type"[^>]*\shidden[^>]*>/, "the root opens on the intro");
+  assert.ok(!/<section id="view-intro"[^>]*\shidden[^>]*>/.test(root), "the root must show the intro");
+  /* file:// must keep working, so the root alone keeps relative asset paths. */
+  assert.ok(root.includes('href="app.css"'), "the root keeps relative asset paths");
+  assert.strictEqual((root.match(/src="js\//g) || []).length, 8);
+});
+
+test("no generated page advertises the repo's private paths", () => {
+  CODES.map((c) => pageFor(c)).concat([gen.buildRoot(INDEX)]).forEach((html, i) => {
+    const label = i < CODES.length ? CODES[i] : "the root page";
+    assert.ok(!html.includes("scripts/build-types.js"), label + " named the generator");
+    assert.ok(!html.includes("test/index-html.test.js"), label + " named a test file");
+    /* The canonical explanation is for a real reader and stays. */
+    assert.ok(html.includes("personality.pages.dev"), label + " lost the canonical explanation");
+  });
 });

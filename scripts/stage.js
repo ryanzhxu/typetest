@@ -14,9 +14,18 @@ const ROOT = path.resolve(__dirname, "..");
 const FILES = ["index.html", "app.css", "404.html", "robots.txt"];
 const DIRS = ["js"];
 
+/* The staging directory is deleted before it is written. A wrong argument to
+   `npm run stage` must therefore never name a source path: `node
+   scripts/stage.js js` would otherwise delete the real js/ directory. */
+const PROTECTED = [ROOT].concat(FILES.concat(DIRS).map(function (name) {
+  return path.join(ROOT, name);
+}));
+
 function stage(outDir) {
   const out = path.resolve(outDir);
-  if (out === ROOT) { throw new Error("stage: refusing to stage over the repo root"); }
+  if (PROTECTED.indexOf(out) !== -1) {
+    throw new Error("stage: refusing to stage over the source path " + out);
+  }
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
 

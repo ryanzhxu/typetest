@@ -157,6 +157,10 @@ main {
 /* ---------- Buttons and links ---------- */
 
 .btn {
+  /* Defense for .btn on an anchor whose parent is neither a flex nor a grid
+     container, where an inline box would drop min-height. The one such anchor
+     today, on 404.html, sits in a flex parent that already blockifies it, so
+     this declaration changes nothing there. Keep it for the next one. */
   display: inline-block;
   appearance: none;
   border: 1px solid transparent;

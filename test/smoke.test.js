@@ -229,6 +229,28 @@ test("the raw HTML of /enfj carries ENFJ's head and copy, with no JavaScript run
   /* A page served at /enfj cannot reach a relative app.css. */
   assert.ok(html.includes('href="/app.css"'), "generated pages need absolute asset paths");
   assert.ok(!/src="js\//.test(html), "a relative script path survived into a generated page");
+
+  /* A sitemap is a hint. Links are how the sixteen pages actually get
+     crawled, and a crawler does not run the gallery-building JavaScript. */
+  assert.ok(html.includes('<a class="gallery-card" href="/infj">'), "no crawlable link to /infj");
+  assert.strictEqual(
+    (html.match(/<a class="gallery-card" href="\/[a-z]{4}">/g) || []).length, 16,
+    "every page must link to all sixteen"
+  );
+});
+
+test("the raw HTML of the root page carries the sixteen links too", async () => {
+  const html = await (await fetch(site.url + "/")).text();
+  assert.ok(html.includes('<a class="gallery-card" href="/infj">'), "no crawlable link to /infj");
+  assert.strictEqual(
+    (html.match(/<a class="gallery-card" href="\/[a-z]{4}">/g) || []).length, 16,
+    "/ is the page a crawler reaches first and must link to all sixteen"
+  );
+  /* The root alone keeps relative asset paths, so index.html still opens
+     from the filesystem. Generating it must not have changed that. */
+  assert.ok(html.includes('href="app.css"'), "the root must keep relative asset paths");
+  assert.ok(html.includes("<title>Personality</title>"), "the root must keep its own head");
+  assert.ok(!html.includes("data-initial-type"), "the root is not a type page");
 });
 
 test("landing on a type URL shows that type with no intro, and offers the test", { skip: !chromium }, async () => {
@@ -237,6 +259,14 @@ test("landing on a type URL shows that type with no intro, and offers the test",
     const page = await browser.newPage();
     const errors = trackErrors(page);
     await page.goto(site.url + "/enfj");
+
+    /* Nothing changed under the reader, so nothing may take focus. Without
+       the first-render guard in render(), focus lands on the h2 on every
+       deep-linked load, with no user action at all. */
+    assert.strictEqual(
+      await page.evaluate(() => document.activeElement.tagName), "BODY",
+      "a deep-linked page must not move focus on its first paint"
+    );
 
     assert.strictEqual(await page.locator("#view-type").isVisible(), true);
     assert.strictEqual(await page.locator("#view-intro").isHidden(), true);
@@ -270,7 +300,8 @@ test("gallery cards are real links, and clicking one changes the URL without los
     const hrefs = await page.locator("#gallery-grid a.gallery-card").evaluateAll(
       (els) => els.map((e) => new URL(e.href).pathname)
     );
-    assert.strictEqual(hrefs.length, 16, "all sixteen cards must be anchors");
+    assert.strictEqual(hrefs.length, 16, "all sixteen cards must be anchors, and only sixteen");
+    assert.strictEqual(new Set(hrefs).size, 16, "the static cards and the rendered ones were both kept");
     assert.ok(hrefs.includes("/infj"), "expected a real /infj href, got " + hrefs.join(","));
 
     /* A plain click on the anchor must be intercepted client-side, not turn
@@ -287,6 +318,13 @@ test("gallery cards are real links, and clicking one changes the URL without los
     assert.strictEqual(
       await page.evaluate(() => window.__navMarker), 1,
       "a plain click must be intercepted and rendered in place, not navigate"
+    );
+
+    /* This one IS a view change under the reader, so focus must move. */
+    assert.deepStrictEqual(
+      await page.evaluate(() => [document.activeElement.tagName, document.activeElement.id]),
+      ["H2", "type-name"],
+      "a card click must move focus to the new heading"
     );
 
     await page.goBack();
@@ -360,10 +398,127 @@ test("the 404 page is served for an unknown path and is styled and noindexed", {
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     assert.notStrictEqual(bg, "rgba(0, 0, 0, 0)", "app.css did not load on the 404 page");
 
-    /* .btn sets min-height: 44px, which does not apply to a non-replaced
-       inline box without a display. This is the empirical half of that. */
+    /* This checks the rendered target size, nothing more. It does not and
+       cannot prove the `display: inline-block` declaration in .btn: the
+       link's parent is a flex container, which already blockifies it. The
+       assertion still bites, because a genuinely inline box would report a
+       content box of roughly 24px, padding not counting toward its height. */
     const box = await page.locator("a.btn").boundingBox();
     assert.ok(box.height >= 44, "the 404 link must meet the 44px target minimum, got " + box.height);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("the tab title travels with the URL", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+
+    /* The tab, the bookmark name and every entry in the Back menu are this
+       string. A URL that says /infj under a tab that says ENFJ is wrong on
+       all three surfaces at once. */
+    await page.goto(site.url + "/enfj");
+    assert.strictEqual(await page.title(), "Warm Front (ENFJ)", "a deep-linked page names its own type");
+
+    await page.click("#btn-nav-sixteen");
+    await page.waitForSelector("#view-sixteen:not([hidden])");
+    await page.click('#gallery-grid a[href="/infj"]');
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(new URL(page.url()).pathname, "/infj");
+    assert.strictEqual(await page.title(), "The Quiet Read (INFJ)", "the title must follow a gallery click");
+
+    await page.goBack();
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(new URL(page.url()).pathname, "/enfj");
+    assert.strictEqual(await page.title(), "Warm Front (ENFJ)", "Back must restore the title, not only the view");
+
+    await page.click("#btn-take-test");
+    await page.waitForSelector("#view-question:not([hidden])");
+    assert.strictEqual(new URL(page.url()).pathname, "/");
+    assert.strictEqual(await page.title(), "Personality", "the test itself is the root page");
+
+    await answerDecisive(page, 36);
+    await page.waitForSelector("#view-reveal:not([hidden])");
+    await page.click("#btn-continue");
+    await page.waitForSelector("#view-type:not([hidden])");
+
+    const code = await page.textContent("#type-code");
+    const name = await page.textContent("#type-name");
+    assert.strictEqual(new URL(page.url()).pathname, "/" + code.toLowerCase());
+    assert.strictEqual(
+      await page.title(), name + " (" + code + ")",
+      "a finished result must name its own type, not the site"
+    );
+    assert.ok(!/myers|briggs|mbti/i.test(await page.title()), "the indicator reached a title");
+
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("returning to the intro puts the address bar back at the root", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+
+    await page.goto(site.url + "/");
+    await page.click("#btn-start");
+    await answerDecisive(page, 36);
+    await page.waitForSelector("#view-reveal:not([hidden])");
+    await page.click("#btn-continue");
+    await page.waitForSelector("#view-type:not([hidden])");
+    const code = await page.textContent("#type-code");
+    assert.strictEqual(new URL(page.url()).pathname, "/" + code.toLowerCase());
+
+    /* Back out of the gallery onto a result, which already owns this URL.
+       This checks the end state only. It does not prove the intro guard in
+       the handler: renderType replaces the URL and the title again on the
+       very same render, so dropping that guard is invisible from here. What
+       it does catch is a stray history entry, which is why the length is
+       checked too. */
+    const lenOnResult = await page.evaluate(() => history.length);
+    await page.click("#btn-nav-sixteen");
+    await page.waitForSelector("#view-sixteen:not([hidden])");
+    await page.click("#btn-back-flow");
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(
+      new URL(page.url()).pathname, "/" + code.toLowerCase(),
+      "Back to a result must leave the result's own URL up"
+    );
+    assert.strictEqual(
+      await page.evaluate(() => history.length), lenOnResult,
+      "browsing to the gallery and back must not add a history entry"
+    );
+
+    /* Start over shows the intro. Leaving /infp up means a reload hands back
+       the INFP type page instead of the test the reader just asked for. */
+    const lenBefore = await page.evaluate(() => history.length);
+    await page.click("#btn-restart");
+    await page.waitForSelector("#view-intro:not([hidden])");
+    assert.strictEqual(new URL(page.url()).pathname, "/", "Start over must not leave the result's URL up");
+    assert.strictEqual(await page.title(), "Personality");
+    assert.strictEqual(
+      await page.evaluate(() => history.length), lenBefore,
+      "Start over must replace, not push: Back may not walk into the discarded result"
+    );
+
+    /* Same problem by the other route: deep link, gallery, Back. */
+    await page.goto(site.url + "/enfj");
+    await page.click("#btn-nav-sixteen");
+    await page.waitForSelector("#view-sixteen:not([hidden])");
+    await page.click("#btn-back-flow");
+    await page.waitForSelector("#view-intro:not([hidden])");
+    assert.strictEqual(
+      new URL(page.url()).pathname, "/",
+      "Back out of the gallery to the intro must not leave /enfj up"
+    );
+    assert.strictEqual(await page.title(), "Personality");
+
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
   } finally {
     await browser.close();
   }
