@@ -11,7 +11,7 @@ const path = require("node:path");
 const buildTypes = require("./build-types.js");
 
 const ROOT = path.resolve(__dirname, "..");
-const FILES = ["index.html", "app.css", "404.html", "robots.txt"];
+const FILES = ["index.html", "app.css", "404.html", "robots.txt", "favicon.svg"];
 const DIRS = ["js"];
 
 /* The staging directory is deleted before it is written. A wrong argument to
@@ -22,7 +22,7 @@ const DIRS = ["js"];
    This is a literal list, not FILES.concat(DIRS). Those two name only what
    gets copied; the repo holds plenty more that a wrong argument can reach.
    `public`, the real staging target, is deliberately absent. */
-const PROTECTED = ["index.html", "app.css", "404.html", "robots.txt", "js",
+const PROTECTED = ["index.html", "app.css", "404.html", "robots.txt", "favicon.svg", "js",
                    "scripts", "test", "docs", ".github", ".superpowers",
                    "package.json", "node_modules", ".git"];
 

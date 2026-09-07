@@ -17,7 +17,11 @@ test("the deploy directory holds the public site and nothing else", () => {
       "enfj", "enfp", "entj", "entp", "esfj", "esfp", "estj", "estp",
       "infj", "infp", "intj", "intp", "isfj", "isfp", "istj", "istp"
     ].map((code) => code + ".html");
-    const expected = ["404.html", "app.css", "index.html", "js", "robots.txt", "sitemap.xml"]
+    /* favicon.svg is a source file so that staging alone yields a site with
+       an icon. The two raster icons and og/ are NOT here: scripts/build-og.js
+       renders those into this directory as a separate deploy step. */
+    const expected = ["404.html", "app.css", "favicon.svg", "index.html", "js",
+                      "robots.txt", "sitemap.xml"]
       .concat(expectedTypes).sort();
     assert.deepStrictEqual(top, expected);
 

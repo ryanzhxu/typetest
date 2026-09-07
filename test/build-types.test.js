@@ -70,7 +70,16 @@ test("each page's head is entirely its own type, with no trace of the other fift
     assert.ok(head.includes('<meta property="og:title" content="' + title + '">'), code + " og:title");
     assert.ok(head.includes('<meta name="twitter:title" content="' + title + '">'), code + " twitter:title");
     assert.ok(head.includes('content="' + desc + '"'), code + " description");
-    assert.ok(head.includes('<meta name="twitter:card" content="summary">'), code + " twitter:card");
+    assert.ok(head.includes('<meta name="twitter:card" content="summary_large_image">'), code + " twitter:card");
+
+    /* The card is the page's own, rendered by scripts/build-og.js into the
+       same staged directory, and absolute because a scraper resolves it
+       against nothing. */
+    const image = gen.ORIGIN + "/og/" + code.toLowerCase() + ".png";
+    assert.ok(head.includes('<meta property="og:image" content="' + image + '">'), code + " og:image");
+    assert.ok(head.includes('<meta name="twitter:image" content="' + image + '">'), code + " twitter:image");
+    assert.ok(head.includes('<meta property="og:image:width" content="1200">'), code + " og:image:width");
+    assert.ok(head.includes('<meta property="og:image:height" content="630">'), code + " og:image:height");
 
     CODES.filter((o) => o !== code).forEach((other) => {
       assert.ok(!head.includes(other), code + " head mentions " + other);

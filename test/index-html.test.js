@@ -34,9 +34,14 @@ test("every per-page meta tag sits between the markers", () => {
     'property="og:site_name"',
     'property="og:title"',
     'property="og:description"',
+    'property="og:image"',
+    'property="og:image:width"',
+    'property="og:image:height"',
+    'property="og:image:alt"',
     'name="twitter:card"',
     'name="twitter:title"',
-    'name="twitter:description"'
+    'name="twitter:description"',
+    'name="twitter:image"'
   ].forEach((tag) => {
     assert.strictEqual(countOf(block, tag), 1, tag + " must appear exactly once inside the markers");
     assert.strictEqual(countOf(HTML, tag), 1, tag + " must not also appear outside the markers");
@@ -68,6 +73,10 @@ test("every hidden-flippable element exists exactly once", () => {
 
 test("asset paths are relative and countable, so the generator can absolutise them", () => {
   assert.strictEqual(countOf(HTML, 'href="app.css"'), 1);
+  ["favicon.svg", "favicon-32.png", "apple-touch-icon.png"].forEach((name) => {
+    assert.strictEqual(countOf(HTML, 'href="' + name + '"'), 1, name + " must be relative and appear once");
+    assert.strictEqual(countOf(HTML, 'href="/' + name + '"'), 0, name + " must not already be absolute");
+  });
   assert.strictEqual(countOf(HTML, 'src="js/'), 8);
   assert.strictEqual(countOf(HTML, 'href="/app.css"'), 0, "the root page keeps relative paths so file:// works");
   assert.strictEqual(countOf(HTML, 'src="/js/'), 0);

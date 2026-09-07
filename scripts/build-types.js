@@ -66,6 +66,9 @@ function headFor(code, type) {
   const title = escapeAttr(titleFor(code, type));
   const desc = escapeAttr(descriptionFor(code, type));
   const url = ORIGIN + "/" + code.toLowerCase();
+  /* Rendered by scripts/build-og.js into the same staged directory. Absolute,
+     because a scraper resolves this against nothing. */
+  const image = ORIGIN + "/og/" + code.toLowerCase() + ".png";
   return [
     "  <title>" + escapeText(titleFor(code, type)) + "</title>",
     '  <meta name="description" content="' + desc + '">',
@@ -75,9 +78,14 @@ function headFor(code, type) {
     '  <meta property="og:site_name" content="Personality">',
     '  <meta property="og:title" content="' + title + '">',
     '  <meta property="og:description" content="' + desc + '">',
-    '  <meta name="twitter:card" content="summary">',
+    '  <meta property="og:image" content="' + image + '">',
+    '  <meta property="og:image:width" content="1200">',
+    '  <meta property="og:image:height" content="630">',
+    '  <meta property="og:image:alt" content="' + title + '">',
+    '  <meta name="twitter:card" content="summary_large_image">',
     '  <meta name="twitter:title" content="' + title + '">',
-    '  <meta name="twitter:description" content="' + desc + '">'
+    '  <meta name="twitter:description" content="' + desc + '">',
+    '  <meta name="twitter:image" content="' + image + '">'
   ].join("\n");
 }
 
@@ -153,6 +161,15 @@ function buildPage(indexHtml, code, type) {
   /* A page served at /enfj cannot reach a relative app.css. The root page
      keeps relative paths so index.html still opens from the filesystem. */
   html = replaceOnce(html, /href="app\.css"/, () => 'href="/app.css"', 'href="app.css"');
+  /* The three icons are relative for the same reason app.css is, and have to
+     be absolutised for the same reason: a page served at /enfj resolves a
+     relative href against /, which happens to work, but only by accident of
+     these pages being one level deep. Do not rely on that. */
+  [["favicon.svg", "favicon.svg"], ["favicon-32.png", "favicon-32.png"],
+   ["apple-touch-icon.png", "apple-touch-icon.png"]].forEach(([name]) => {
+    html = replaceOnce(html, new RegExp('href="' + name.replace(".", "\\.") + '"'),
+      () => 'href="/' + name + '"', 'href="' + name + '"');
+  });
   const jsHits = (html.match(/src="js\//g) || []).length;
   if (jsHits !== 8) {
     throw new Error("build-types: expected 8 script tags, found " + jsHits);
