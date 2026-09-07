@@ -116,6 +116,11 @@ Gallery of all sixteen. This is the second product: most arrivals will never
 take the test, having searched for what their letters mean or to look someone
 up. Sixteen good pages beats one good quiz for traffic.
 
+**NOT IMPLEMENTED as of piece A.** Shipped as one page with sixteen JS-toggled
+views and no routing, so there are no sixteen pages and this thesis is inert.
+Designed as piece A3: `docs/superpowers/specs/2026-09-07-piece-a3-type-pages.md`.
+Do not add the personal-site card until A3 lands.
+
 ### 5.5 Traits
 
 Six scales covering the ground behind 偏执型, 回避型 and 依赖型, derived from
@@ -280,8 +285,13 @@ are later.
 
 ### Piece A stack
 
-Vanilla HTML, CSS and JS. No build step, no framework. Cloudflare Pages, which
-is what already runs here, deployed from GitHub Actions on push to `main`.
+Vanilla HTML, CSS and JS. No dev-time build, no framework. Cloudflare Pages,
+deployed from GitHub Actions on push to `main`.
+
+**Amended 2026-09-07:** a DEPLOY-time generator is permitted. The constraint's
+intent is that `index.html` opens by double-clicking and is verifiable without a
+toolchain, and that still holds. Piece A3 needs one to emit sixteen per-type
+pages, which cannot be hand-maintained (sixteen files now, sixty-four after B).
 
 Rationale: piece A has no server-side anything, storage is out by decision, and
 a no-build site can be opened by double-clicking `index.html`, which makes it
