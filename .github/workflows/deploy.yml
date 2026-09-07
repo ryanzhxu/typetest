@@ -13,7 +13,13 @@ jobs:
       - run: npm install
       - run: npx playwright install --with-deps chromium
       - run: npm test
-      - run: npx -y wrangler@latest pages deploy . --project-name=personality --branch=main
+      - name: Stage only the public site
+        run: |
+          rm -rf public
+          mkdir -p public
+          cp index.html app.css public/
+          cp -r js public/
+      - run: npx -y wrangler@latest pages deploy public --project-name=personality --branch=main
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

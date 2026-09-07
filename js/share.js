@@ -66,12 +66,34 @@
     return minSize;
   }
 
+  /* Joins 2-3 short phrases the way a person would say them out loud:
+     "a and b", or "a, b and c". Not used for 1 item or 4, which get their
+     own wording below. */
+  function joinNatural(items) {
+    if (items.length === 2) { return items[0] + " and " + items[1]; }
+    return items.slice(0, -1).join(", ") + " and " + items[items.length - 1];
+  }
+
+  /* result.closeAxis is only the single nearest close axis, kept for the
+     second-self mechanic. The caveat sentence needs the true count of close
+     axes, so it is counted here rather than assumed to be one. */
   function caveatLine(result, type) {
-    if (result.closeAxis) {
-      var poles = SG.items.POLES[result.closeAxis];
+    if (!result.closeAxis) { return type.line; }
+
+    var axes = result.axes;
+    var close = SG.items.AXES.filter(function (a) { return axes[a].close; });
+
+    if (close.length === 1) {
+      var poles = SG.items.POLES[close[0]];
       return "Solid on three. My " + poles[0] + " and " + poles[1] + " sat on the line.";
     }
-    return type.line;
+    if (close.length === 4) {
+      return "Nothing was solid this time. All four sat on the line.";
+    }
+
+    var solidWord = close.length === 2 ? "two" : "one";
+    var labels = close.map(function (a) { return SG.items.POLES[a].join("/"); });
+    return "Solid on " + solidWord + ". My " + joinNatural(labels) + " sat on the line.";
   }
 
   function buildCanvas(result, frauncesLoaded) {
@@ -115,6 +137,13 @@
 
     if (result.closeAxis) {
       var axis = result.axes[result.closeAxis];
+      var secondType = SG.types.byCode[result.secondCode];
+
+      ctx.font = "36px " + bodyFamily;
+      ctx.fillStyle = TEXT_MUTED;
+      ctx.fillText("There is a " + secondType.name + " in you too.", CENTER_X, cursorY);
+      cursorY += 64;
+
       /* Peach is the user's own letter. est measures distance toward pole
          1, so est only IS the user's share when letterIndex is 1; when
          letterIndex is 0 the user's own letter is pole 0 and their true
@@ -127,6 +156,18 @@
       ctx.fillRect(MARGIN, cursorY, splitX, barH);
       ctx.fillStyle = LILAC;
       ctx.fillRect(MARGIN + splitX, cursorY, MAX_W - splitX, barH);
+
+      /* Labels so peach/lilac read as "you" and "the other one", not an
+         unlabelled color split. Geometry above (splitX, barH) is untouched. */
+      var labelY = cursorY + barH + 44;
+      ctx.font = "28px " + bodyFamily;
+      ctx.textAlign = "left";
+      ctx.fillStyle = PEACH;
+      ctx.fillText(type.name, MARGIN, labelY);
+      ctx.textAlign = "right";
+      ctx.fillStyle = LILAC;
+      ctx.fillText(secondType.name, MARGIN + MAX_W, labelY);
+      ctx.textAlign = "center";
     }
 
     return canvas;
@@ -184,8 +225,7 @@
   }
 
   /* The page tells us which result to share by calling this whenever one
-     becomes available. Nothing calls it yet: render.js has `result` in
-     scope inside renderType() but does not know about SG.share. */
+     becomes available (render.js's renderType() calls it). */
   var lastResult = null;
   function setResult(result) {
     lastResult = result;

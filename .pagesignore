@@ -1,0 +1,30 @@
+# Cloudflare Pages direct-upload only ever excludes node_modules, .DS_Store
+# and .git on its own. Everything else here is public if it reaches the
+# upload directory, so this file names everything besides index.html,
+# app.css and js/ that must never ship.
+#
+# CAVEAT, checked against the exact wrangler build this project's CI fetches
+# (wrangler 4.129.0, via `npx -y wrangler@latest`): the classic
+# `wrangler pages deploy` code path (src/pages/upload.ts's `validate`
+# function) walks the deploy directory against a hardcoded IGNORE_LIST
+# (_worker.js, _redirects, _headers, _routes.json, functions, .DS_Store,
+# node_modules, .git, .wrangler) and does not read a `.pagesignore`,
+# `.gitignore`, or `.assetsignore` file at all. This file therefore has no
+# effect on that path today. (A separate, newer path that delegates new
+# projects to Workers static assets does honor `.assetsignore`, but only
+# when wrangler detects it is being driven by an AI coding agent, which a
+# plain GitHub Actions runner is not.)
+#
+# The actual fix is in .github/workflows/deploy.yml: it stages only
+# index.html, app.css and js/ into a public/ directory and deploys that
+# directory instead of the repo root, so nothing below can leak regardless
+# of which upload path wrangler takes. This file is kept anyway, in case a
+# future wrangler version reads it, and to document exactly what must never
+# be public.
+docs/
+test/
+.github/
+package.json
+.gitignore
+.superpowers/
+.pagesignore

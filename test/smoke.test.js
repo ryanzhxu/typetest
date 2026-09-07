@@ -3,18 +3,25 @@ const test = require("node:test");
 const assert = require("node:assert");
 const path = require("node:path");
 
-/* Playwright is optional. Try the real package first, then the sibling repo
-   that happens to have it installed on this machine, then give up cleanly so
-   `npm test` still passes on a bare checkout with neither. */
+/* Playwright is a pinned devDependency, but stays optional at require-time so
+   `npm test` still passes on a bare checkout where `npm install` was never
+   run. In CI, though, a missing chromium means the deploy gate is about to
+   wave a page through that nothing ever loaded, so that case fails loudly
+   instead of skipping. */
 let chromium = null;
 try {
   ({ chromium } = require("playwright"));
 } catch (e) {
-  try {
-    ({ chromium } = require("../../quirky-promo/node_modules/playwright"));
-  } catch (e2) {
-    chromium = null;
-  }
+  chromium = null;
+}
+
+if (!chromium && process.env.CI) {
+  throw new Error(
+    "playwright's chromium is unavailable under CI. The smoke tests would " +
+    "silently skip and the deploy gate would go green without ever loading " +
+    "the page. Fix the Playwright/Chromium install step rather than let " +
+    "this skip."
+  );
 }
 
 const PAGE_URL = "file://" + path.resolve(__dirname, "..", "index.html");
