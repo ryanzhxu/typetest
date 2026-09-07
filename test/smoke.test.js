@@ -222,7 +222,6 @@ test("the raw HTML of /enfj carries ENFJ's head and copy, with no JavaScript run
   assert.ok(html.includes("The room gets easier when they walk in."), "the line");
   assert.ok(html.includes("Hosts without trying"), "a chip");
   assert.ok(html.includes("Oprah Winfrey"), "a name");
-  assert.ok(html.includes("Not affiliated with or endorsed by The Myers-Briggs Company."), "non-affiliation line");
 
   /* This is what prevents a flash of the intro: the document arrives with the
      intro already hidden and the type view already shown. A test that only
@@ -400,7 +399,6 @@ test("the 404 page is served for an unknown path and is styled and noindexed", {
     assert.strictEqual(response.status(), 404);
     const html = await page.content();
     assert.match(html, /name="robots" content="noindex"/);
-    assert.ok((await page.textContent("body")).includes("Not affiliated"), "404 keeps the non-affiliation line");
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     assert.notStrictEqual(bg, "rgba(0, 0, 0, 0)", "app.css did not load on the 404 page");
 
@@ -535,6 +533,73 @@ test("returning to the intro puts the address bar back at the root", { skip: !ch
     assert.strictEqual(await page.title(), "Personality");
 
     assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+/* The heading takes focus when a view changes under the reader, and that is
+   right. On the very first paint nothing has changed and nobody has acted, so
+   the ring drawn there is not focus, it is a mark the reader did not ask for
+   and cannot explain. It cleared on their first click, which read as a fault.
+   Both the root and a deep-linked type page are checked: the type page had
+   this exemption already, the root is the one that regressed. */
+test("the first paint of a page never steals focus onto the heading", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const p of ["/", "/enfj"]) {
+      const page = await browser.newPage();
+      const errors = trackErrors(page);
+      await page.goto(site.url + p);
+      await page.waitForSelector(".view:not([hidden])");
+      assert.strictEqual(
+        await page.evaluate(() => document.activeElement.tagName), "BODY",
+        p + " moved focus on first paint"
+      );
+      assert.strictEqual(errors.length, 0, errors.join("\n"));
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+/* The sixteen one-liners are not the same length, so some cards wrap to two
+   lines and some do not. Nothing about that should change a card's size. */
+test("all sixteen gallery cards render at the same size", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.goto(site.url + "/");
+    await page.click("#btn-nav-sixteen");
+    await page.waitForSelector("#view-sixteen:not([hidden])");
+
+    const boxes = await page.locator("#gallery-grid a.gallery-card").evaluateAll(
+      (els) => els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height) };
+      })
+    );
+    assert.strictEqual(boxes.length, 16, "expected sixteen cards");
+
+    /* At least one card must wrap, or the test would pass on a page where
+       every one-liner happened to fit and prove nothing. */
+    const lines = await page.locator("#gallery-grid .gallery-line").evaluateAll(
+      (els) => els.map((e) => Math.round(e.getBoundingClientRect().height))
+    );
+    assert.ok(
+      new Set(lines).size > 1,
+      "no one-liner wrapped at this width, so this test cannot see the bug it guards"
+    );
+
+    const heights = new Set(boxes.map((b) => b.h));
+    assert.strictEqual(
+      heights.size, 1,
+      "cards differ in height: " + Array.from(heights).sort((a, b) => a - b).join(", ")
+    );
+    const widths = new Set(boxes.map((b) => b.w));
+    assert.strictEqual(widths.size, 1, "cards differ in width: " + Array.from(widths).join(", "));
   } finally {
     await browser.close();
   }

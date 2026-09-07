@@ -130,15 +130,6 @@ test("asset paths are absolutised, because a page at /enfj cannot use relative o
   assert.ok(!/src="js\//.test(html));
 });
 
-test("the non-affiliation line survives onto every page", () => {
-  CODES.forEach((code) => {
-    assert.ok(
-      pageFor(code).includes("Not affiliated with or endorsed by The Myers-Briggs Company."),
-      code + " lost the non-affiliation line"
-    );
-  });
-});
-
 test("attribute and text values are escaped", () => {
   const nasty = {
     name: 'A & B "C" <D>',

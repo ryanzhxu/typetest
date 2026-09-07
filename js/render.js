@@ -304,10 +304,11 @@
       else if (activeView === "type") { renderType(); }
 
       /* Moving focus is right when a view changes under the reader. It is
-         wrong on the very first paint of a deep-linked page, where nothing
-         changed and the reader has not acted yet. */
-      if (firstRender && INITIAL_NAV === "type") { firstRender = false; return; }
-      firstRender = false;
+         wrong on the first paint of any page, where nothing has changed and
+         the reader has not acted yet: the ring lands on the heading before
+         anyone touches the page, and then clears on their first click, which
+         reads as a glitch rather than as focus. */
+      if (firstRender) { firstRender = false; return; }
       focusView(activeView);
     }
 
