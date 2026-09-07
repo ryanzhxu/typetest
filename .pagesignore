@@ -1,7 +1,8 @@
 # Cloudflare Pages direct-upload only ever excludes node_modules, .DS_Store
 # and .git on its own. Everything else here is public if it reaches the
-# upload directory, so this file names everything besides index.html,
-# app.css and js/ that must never ship.
+# upload directory, so this file names everything besides what scripts/
+# stage.js actually copies (index.html, app.css, 404.html, robots.txt, js/,
+# and the generated type directories and sitemap.xml) that must never ship.
 #
 # CAVEAT, checked against the exact wrangler build this project's CI fetches
 # (wrangler 4.129.0, via `npx -y wrangler@latest`): the classic
@@ -15,12 +16,12 @@
 # when wrangler detects it is being driven by an AI coding agent, which a
 # plain GitHub Actions runner is not.)
 #
-# The actual fix is in .github/workflows/deploy.yml: it stages only
-# index.html, app.css and js/ into a public/ directory and deploys that
-# directory instead of the repo root, so nothing below can leak regardless
-# of which upload path wrangler takes. This file is kept anyway, in case a
-# future wrangler version reads it, and to document exactly what must never
-# be public.
+# The actual fix is in .github/workflows/deploy.yml: it stages only the
+# allowlisted files and directories (see scripts/stage.js) into a public/
+# directory and deploys that directory instead of the repo root, so nothing
+# below can leak regardless of which upload path wrangler takes. This file is
+# kept anyway, in case a future wrangler version reads it, and to document
+# exactly what must never be public.
 #
 # scripts/stage.js is what actually enforces this allowlist now, and
 # test/stage.test.js asserts it.

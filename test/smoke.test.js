@@ -273,10 +273,21 @@ test("gallery cards are real links, and clicking one changes the URL without los
     assert.strictEqual(hrefs.length, 16, "all sixteen cards must be anchors");
     assert.ok(hrefs.includes("/infj"), "expected a real /infj href, got " + hrefs.join(","));
 
+    /* A plain click on the anchor must be intercepted client-side, not turn
+       into a full page load. Now that every type has its own real, correctly
+       rendering page, a full reload to /infj would look identical in the
+       DOM: same URL, same type shown. The marker is the only thing that
+       tells the two apart, because a full load discards window. */
+    await page.evaluate(() => { window.__navMarker = 1; });
+
     await page.click('#gallery-grid a[href="/infj"]');
     await page.waitForSelector("#view-type:not([hidden])");
     assert.strictEqual(new URL(page.url()).pathname, "/infj");
     assert.strictEqual(await page.textContent("#type-name"), "The Quiet Read");
+    assert.strictEqual(
+      await page.evaluate(() => window.__navMarker), 1,
+      "a plain click must be intercepted and rendered in place, not navigate"
+    );
 
     await page.goBack();
     await page.waitForSelector("#view-type:not([hidden])");
@@ -311,6 +322,25 @@ test("finishing the test leaves the address bar at the result's own URL", { skip
     /* replaceState, not push: Back must not walk the reveal again. */
     assert.strictEqual(await page.locator("#share-block").isVisible(), true, "the share block must survive");
     assert.strictEqual(await page.locator("#type-test-cta").isHidden(), true, "no test offer on your own result");
+
+    /* The plan justifies intercepting plain gallery clicks on the grounds
+       that a full page load would throw away a finished result and its
+       share card. Browse to some other type, then Back, and confirm this is
+       still the reader's own result, not a fresh reload of that type. */
+    await page.click("#btn-nav-sixteen");
+    await page.waitForSelector("#view-sixteen:not([hidden])");
+    const otherHref = await page.locator("#gallery-grid a.gallery-card").evaluateAll(
+      (els, ownCode) => els.map((e) => new URL(e.href).pathname).find((p) => p !== "/" + ownCode),
+      code.toLowerCase()
+    );
+    await page.click('#gallery-grid a[href="' + otherHref + '"]');
+    await page.waitForSelector("#view-type:not([hidden])");
+
+    await page.goBack();
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(await page.textContent("#type-code"), code, "Back must return to the reader's own result");
+    assert.strictEqual(await page.locator("#share-block").isVisible(), true, "still their result, share block visible");
+    assert.strictEqual(await page.locator("#type-test-cta").isHidden(), true, "still their result, no test offer");
 
     assert.strictEqual(errors.length, 0, errors.join("\n"));
   } finally {
