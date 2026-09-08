@@ -32,6 +32,7 @@ const serve = require("./serve.js");
 const stage = require("../scripts/stage.js");
 require("../js/ns.js");
 require("../js/types.js");
+require("../js/items.js");
 const types = globalThis.SG.types;
 
 /* The staged site, built by the same script the deploy uses, served over HTTP.
@@ -74,13 +75,35 @@ async function answerDot(page, value, count) {
   }
 }
 
-/* Dot 4 is "Both, equally": a real answer that lands dead centre, not a skip. */
+/* Dot 4 is "Somewhere in between": a real answer that lands dead centre, not a skip. */
 async function answerNeutral(page, count) {
   await answerDot(page, 4, count);
 }
 
+/* Balanced keying means dot 7 is not the same answer twice running. On an item
+   that shows its second pole, dot 7 is Strongly disagree and records the FIRST
+   pole. A run that wants one consistent pole therefore has to ask which dot
+   means that pole on the question actually on screen, rather than pressing the
+   same number thirty-six times. Dot 4 needs no such care: the middle is the
+   middle either way, which is why answerNeutral above is still a plain loop. */
+const FLIPPED_TEXT = new Set(
+  globalThis.SG.items.core
+    .concat(globalThis.SG.items.tiebreak)
+    .filter((it) => it.show === "b")
+    .map((it) => it.b)
+);
+
+async function answerAtPole(page, pole, count) {
+  for (let i = 0; i < count; i += 1) {
+    const shown = (await page.textContent("#q-statement")).trim();
+    const dot = FLIPPED_TEXT.has(shown) ? 8 - pole : pole;
+    await page.click('#q-dots input[value="' + dot + '"]');
+    await page.click("#btn-next");
+  }
+}
+
 async function answerDecisive(page, count) {
-  await answerDot(page, 7, count);
+  await answerAtPole(page, 7, count);
 }
 
 async function shareCardBlobInfo(page) {
@@ -634,17 +657,17 @@ test("the seven dots only select; Next commits the choice and the progress bar t
     );
     assert.strictEqual(await page.locator("#btn-next").isDisabled(), true, "Next has nothing to commit yet");
 
-    const first = await page.textContent("#q-statement-a");
+    const first = await page.textContent("#q-statement");
     assert.strictEqual(await page.textContent("#q-progress"), "Zero down, thirty-six to go");
     assert.strictEqual(await page.locator("#q-progress-fill").evaluate((e) => e.style.width), "0%");
 
     /* Choosing a dot never advances by itself. */
     await page.click('#q-dots input[value="2"]');
-    assert.strictEqual(await page.textContent("#q-statement-a"), first, "a chosen dot must not advance on its own");
+    assert.strictEqual(await page.textContent("#q-statement"), first, "a chosen dot must not advance on its own");
     assert.strictEqual(await page.locator("#btn-next").isDisabled(), false, "Next unlocks once a dot is chosen");
 
     await page.click("#btn-next");
-    assert.notStrictEqual(await page.textContent("#q-statement-a"), first, "Next must advance");
+    assert.notStrictEqual(await page.textContent("#q-statement"), first, "Next must advance");
     assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
     const fill = await page.locator("#q-progress-fill").evaluate((e) => e.style.width);
     assert.ok(parseFloat(fill) > 0 && parseFloat(fill) < 100, "progress bar should have moved, got " + fill);
@@ -666,19 +689,19 @@ test("Back returns to the previous question with that answer still selected", { 
 
     assert.strictEqual(await page.locator("#btn-back").isHidden(), true, "nothing is behind the first question");
 
-    const first = await page.textContent("#q-statement-a");
+    const first = await page.textContent("#q-statement");
     await page.click('#q-dots input[value="6"]');
     await page.click("#btn-next");
-    await page.waitForFunction((was) => document.getElementById("q-statement-a").textContent !== was, first);
+    await page.waitForFunction((was) => document.getElementById("q-statement").textContent !== was, first);
     assert.strictEqual(await page.locator("#btn-back").isVisible(), true);
 
     await page.click("#btn-back");
-    assert.strictEqual(await page.textContent("#q-statement-a"), first, "Back must land on the same question");
+    assert.strictEqual(await page.textContent("#q-statement"), first, "Back must land on the same question");
     assert.strictEqual(
       await page.locator("#q-dots input:checked").inputValue(), "6",
       "the answer being revised must come back selected"
     );
-    assert.strictEqual(await page.textContent("#q-feedback"), "Mostly the second one");
+    assert.strictEqual(await page.textContent("#q-feedback"), "Disagree");
     assert.strictEqual(await page.locator("#btn-back").isHidden(), true, "back to the first question hides Back again");
 
     assert.strictEqual(errors.length, 0, errors.join("\n"));
@@ -698,23 +721,23 @@ test("an arrow key moves along the dots without committing, Enter commits", { sk
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
-    const first = await page.textContent("#q-statement-a");
+    const first = await page.textContent("#q-statement");
     await page.keyboard.press("3");
     assert.strictEqual(await page.locator("#q-dots input:checked").inputValue(), "3");
-    assert.strictEqual(await page.textContent("#q-statement-a"), first, "a digit must not advance on its own");
+    assert.strictEqual(await page.textContent("#q-statement"), first, "a digit must not advance on its own");
 
     for (const value of ["4", "5", "6"]) {
       await page.keyboard.press("ArrowRight");
       assert.strictEqual(await page.locator("#q-dots input:checked").inputValue(), value);
-      assert.strictEqual(await page.textContent("#q-statement-a"), first, "an arrow key must not advance");
+      assert.strictEqual(await page.textContent("#q-statement"), first, "an arrow key must not advance");
     }
     await page.keyboard.press("ArrowLeft");
-    assert.strictEqual(await page.textContent("#q-feedback"), "Leans the second way");
+    assert.strictEqual(await page.textContent("#q-feedback"), "Slightly disagree");
     assert.strictEqual(await page.textContent("#q-progress"), "Zero down, thirty-six to go",
       "no arrow key may have recorded anything");
 
     await page.keyboard.press("Enter");
-    await page.waitForFunction((was) => document.getElementById("q-statement-a").textContent !== was, first);
+    await page.waitForFunction((was) => document.getElementById("q-statement").textContent !== was, first);
     assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
 
     assert.strictEqual(errors.length, 0, errors.join("\n"));
@@ -732,11 +755,11 @@ test("changing the choice before pressing Next replaces it, not adds a second an
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
-    const first = await page.textContent("#q-statement-a");
+    const first = await page.textContent("#q-statement");
     await page.click('#q-dots input[value="1"]');
     await page.click('#q-dots input[value="7"]');
     await page.click("#btn-next");
-    assert.notStrictEqual(await page.textContent("#q-statement-a"), first);
+    assert.notStrictEqual(await page.textContent("#q-statement"), first);
     assert.strictEqual(
       await page.textContent("#q-progress"), "One down, thirty-five to go",
       "changing the choice before Next must record one answer, not skip a question"
@@ -767,10 +790,10 @@ test("skipping moves on without recording an answer, and widens the honesty band
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
-    const first = await page.textContent("#q-statement-a");
+    const first = await page.textContent("#q-statement");
     await page.click("#btn-skip");
     assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
-    assert.notStrictEqual(await page.textContent("#q-statement-a"), first, "a skip must move on");
+    assert.notStrictEqual(await page.textContent("#q-statement"), first, "a skip must move on");
     assert.strictEqual(
       await page.locator("#q-dots input:checked").count(), 0,
       "the next question must arrive with nothing chosen"
@@ -827,6 +850,55 @@ test("browsing from one type to another replaces the sections instead of stackin
     assert.ok(!text.includes("Warm Front"), "ENFJ's copy must be gone");
 
     assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+/* The bug this guards: Back hands over a value already turned over for an item
+   that shows its second pole, so restoring it without turning it back would put
+   a different dot under the reader than the one they pressed, silently. The
+   flipped items are found by matching the statement on screen against the bank,
+   rather than by exposing the flow, so nothing test-only ships. */
+test("Back restores the dot the reader actually pressed, on a flipped item", { skip: !chromium }, async () => {
+  const items = globalThis.SG.items;
+  const flippedText = new Set(
+    items.core.filter((it) => it.show === "b").map((it) => it.b)
+  );
+  assert.ok(flippedText.size > 0, "no flipped items in the core bank");
+
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(PAGE_URL);
+    await page.click("#btn-start");
+
+    /* Walk forward until the statement on screen belongs to a flipped item, so
+       the inversion is actually exercised rather than assumed. */
+    let onFlipped = false;
+    for (let i = 0; i < 36 && !onFlipped; i += 1) {
+      onFlipped = flippedText.has((await page.textContent("#q-statement")).trim());
+      if (!onFlipped) {
+        await page.evaluate(() => document.querySelectorAll("#q-dots input")[3].click());
+        await page.click("#btn-next");
+      }
+    }
+    assert.ok(onFlipped, "no flipped item was reached in thirty-six questions");
+
+    const statement = (await page.textContent("#q-statement")).trim();
+    await page.evaluate(() => document.querySelectorAll("#q-dots input")[1].click());
+    await page.click("#btn-next");
+    await page.click("#btn-back");
+
+    assert.strictEqual(
+      (await page.textContent("#q-statement")).trim(), statement,
+      "Back landed on a different question"
+    );
+    const checked = await page.evaluate(
+      () => Array.prototype.findIndex.call(document.querySelectorAll("#q-dots input"), (i) => i.checked)
+    );
+    assert.strictEqual(checked, 1, "Back put a different dot under the reader");
+    assert.strictEqual(await page.textContent("#q-feedback"), "Agree");
   } finally {
     await browser.close();
   }

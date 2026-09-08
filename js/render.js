@@ -3,19 +3,33 @@
   var SG = root.SG;
 
   /* Dot feedback describes the answer just given, never the emerging type.
-     The middle reads "Both, equally" and not "neither": in js/score.js it
-     counts as a real answer and narrows the honesty band, while the skip
-     beside it counts as none and widens it. Two controls that sit together
-     and do opposite things have to say so. */
+
+     The middle reads "Somewhere in between" and not "Neither": in js/score.js
+     it counts as a real answer and narrows the honesty band, while the skip
+     button beside it counts as none and widens it. Two controls that sit
+     together and do opposite things have to say so. */
   var FEEDBACK = [
-    "Strongly the first one",
-    "Mostly the first one",
-    "Leans the first way",
-    "Both, equally",
-    "Leans the second way",
-    "Mostly the second one",
-    "Strongly the second one"
+    "Strongly agree",
+    "Agree",
+    "Slightly agree",
+    "Somewhere in between",
+    "Slightly disagree",
+    "Disagree",
+    "Strongly disagree"
   ];
+
+  /* js/flow.js and js/score.js speak pole space, where 1 is the first pole and
+     7 the second. The screen speaks agreement, where 1 is Strongly agree. For
+     an item showing its second pole those two run in opposite directions, so
+     the value turns over here, at the view boundary, and nowhere else. That is
+     what keeps js/score.js and every one of its tests untouched.
+
+     8 - v is its own inverse, so the one function serves both directions. */
+  function flip(value, item) {
+    if (value === null || value === undefined) { return null; }
+    if (!item || item.show !== "b") { return value; }
+    return 8 - value;
+  }
 
   var ONES = [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -49,8 +63,7 @@
 
       qProgress: document.getElementById("q-progress"),
       qProgressFill: document.getElementById("q-progress-fill"),
-      qStatementA: document.getElementById("q-statement-a"),
-      qStatementB: document.getElementById("q-statement-b"),
+      qStatement: document.getElementById("q-statement"),
       qDots: document.getElementById("q-dots"),
       qFeedback: document.getElementById("q-feedback"),
       btnSkip: document.getElementById("btn-skip"),
@@ -256,8 +269,10 @@
     function advance() {
       var value = pendingValue;
       if (value === null) { return; }
+      /* Read the item before answering, because answering moves the queue on. */
+      var item = flow.state().item;
       pendingValue = null;
-      flow.answer(value);
+      flow.answer(flip(value, item));
       render();
     }
 
@@ -270,8 +285,7 @@
         cap(numberWords(state.index)) + " down, " + numberWords(remaining) + " to go";
       el.qProgressFill.style.width =
         (state.total ? (state.index / state.total) * 100 : 0) + "%";
-      el.qStatementA.textContent = item.a;
-      el.qStatementB.textContent = item.b;
+      el.qStatement.textContent = item[item.show];
       /* pendingValue is null on the way forward and holds the undone answer
          on the way back, which is what puts that dot back under the reader. */
       setValue(pendingValue);
@@ -444,7 +458,10 @@
     });
 
     el.btnBack.addEventListener("click", function () {
-      pendingValue = flow.back();
+      /* back() hands over a pole-space value and only then is the queue
+         standing on the earlier item, so the item to un-flip against is the
+         one read after the call, never before it. */
+      pendingValue = flip(flow.back(), flow.state().item);
       render();
     });
 
@@ -550,5 +567,5 @@
     render();
   }
 
-  SG.render = { mount: mount };
+  SG.render = { mount: mount, flip: flip };
 }(typeof window !== "undefined" ? window : globalThis));
