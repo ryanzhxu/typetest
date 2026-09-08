@@ -66,13 +66,20 @@
           </div>
         </div>
         <div class="scale">
-          <p id="q-statement-a" class="statement statement-a" aria-live="polite"></p>
-          <p id="q-statement-b" class="statement statement-b" aria-live="polite"></p>
-          <!-- The seven dots are built by js/render.js. They are the same
-               seven values the old slider carried, so js/score.js is
-               unchanged: 1 is the first statement, 7 is the second. -->
-          <div id="q-dots" class="dot-row" role="radiogroup"
-               aria-label="Choose which statement fits you better"></div>
+          <p id="q-statement" class="statement" aria-live="polite"></p>
+          <!-- The seven dots are built by js/render.js. They are the same seven
+               values js/score.js has always read, so that file is unchanged: in
+               pole space 1 is the first pole and 7 the second. On screen they
+               read as agreement instead, and js/render.js turns the value over
+               for an item that shows its second pole. -->
+          <div class="dot-scale">
+            <p class="dot-anchors" aria-hidden="true">
+              <span>Agree</span>
+              <span>Disagree</span>
+            </p>
+            <div id="q-dots" class="dot-row" role="radiogroup"
+                 aria-label="How much do you agree with this statement"></div>
+          </div>
         </div>
         <p id="q-feedback" class="feedback-text" aria-live="polite"></p>
         <div class="question-actions">
