@@ -8,7 +8,7 @@
   --lilac: #ABA0EA;
 
   --muted: #9d97ac;
-  --border: #38334a;
+  --border: #6c6879;
   --focus: var(--peach);
 
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -35,7 +35,7 @@
     --peach: #B85328;
     --lilac: #644FAE;
     --muted: #6d6579;
-    --border: #ddd4e2;
+    --border: #8d8891;
     color-scheme: light;
   }
 }
@@ -47,7 +47,7 @@
   --peach: #B85328;
   --lilac: #644FAE;
   --muted: #6d6579;
-  --border: #ddd4e2;
+  --border: #8d8891;
   color-scheme: light;
 }
 
