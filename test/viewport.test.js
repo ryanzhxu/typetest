@@ -24,14 +24,32 @@ const PAGE_URL = "file://" + path.resolve(__dirname, "..", "index.html");
 const SIZES = [[320, 568], [375, 667], [390, 844]];
 
 /* Runs in the page. Reports every element inside main that leaves the viewport
-   or its own parent. Escaping the parent is the one that matters: the report
-   was circles outside the card, which is a parent overflow long before it is a
-   page overflow, and a page-only check would have called that view clean. */
+   or the card it lives in.
+
+   The card, not the immediate parent. The report was "the circles are out of
+   the border", and the border is the card: a page-only check called that view
+   clean while the row hung 14px outside the card on an iPhone 13 Pro. Checking
+   the immediate parent instead over-reports, because the dot row deliberately
+   runs to the card's edges on a phone, where forty pixels of padding is forty
+   pixels the seven targets do not get. The card edge is the line that matters
+   and the line the reader sees. */
 function escapes() {
   var bad = [];
   var vw = window.innerWidth;
   var docW = document.documentElement.scrollWidth;
   if (docW > vw) { bad.push("the page overflows by " + (docW - vw) + "px"); }
+
+  function boundary(el) {
+    var node = el.parentElement;
+    while (node && node.tagName !== "MAIN") {
+      if (/-card$/.test(String(node.className || "").trim().split(/\s+/)[0] || "")) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return node || document.querySelector("main");
+  }
+
   Array.prototype.forEach.call(document.querySelectorAll("main *"), function (el) {
     var r = el.getBoundingClientRect();
     if (r.width === 0 || el.hidden) { return; }
@@ -40,9 +58,12 @@ function escapes() {
     if (r.right > vw + 0.5) {
       bad.push(name + " runs " + Math.round(r.right - vw) + "px past the viewport");
     }
-    var p = el.parentElement.getBoundingClientRect();
+    var b = boundary(el);
+    if (!b) { return; }
+    var p = b.getBoundingClientRect();
     if (r.right > p.right + 0.5 || r.left < p.left - 0.5) {
-      bad.push(name + " escapes its parent");
+      bad.push(name + " escapes its "
+        + (b.tagName === "MAIN" ? "column" : String(b.className).trim().split(/\s+/)[0]));
     }
   });
   return bad.filter(function (v, i, all) { return all.indexOf(v) === i; });
