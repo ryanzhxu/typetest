@@ -111,3 +111,34 @@ SIZES.forEach(function (size) {
     assert.deepStrictEqual(failures, [], "\n" + failures.join("\n"));
   });
 });
+
+/* The card sat at y=80 in an 844px viewport and was 398px tall, leaving 366px
+   of dead space below it and a scale the thumb had to stretch up for.
+
+   The tolerance is not zero and cannot be. The card is centred inside main, but
+   main sits below a header and carries more padding at the bottom than the top,
+   so the two viewport-relative gaps differ by that much on purpose. What is
+   being caught here is 80 against 366, not 46 against 32. */
+test("the question card sits in the middle of the screen, not under the header", { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(PAGE_URL);
+    await page.click("#btn-start");
+
+    const m = await page.evaluate(() => {
+      const r = document.querySelector(".question-card").getBoundingClientRect();
+      return {
+        above: Math.round(r.top),
+        below: Math.round(window.innerHeight - r.bottom),
+        scrolls: document.documentElement.scrollHeight > window.innerHeight + 1
+      };
+    });
+
+    assert.ok(!m.scrolls, "centring must not introduce a scrollbar, and it did");
+    assert.ok(Math.abs(m.above - m.below) <= 32,
+      "card is not centred: " + m.above + "px above, " + m.below + "px below");
+  } finally {
+    await browser.close();
+  }
+});
