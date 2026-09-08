@@ -238,6 +238,15 @@
           if (e.detail > 0) { scheduleAdvance(); }
         });
 
+        /* Preview only, never a commit: hovering or tabbing onto a dot shows
+           what choosing it would mean, and leaving it falls back to whatever
+           is actually chosen (or nothing, if that is null). Focus covers
+           keyboard tabbing and touch, which do not fire mouseenter. */
+        label.addEventListener("mouseenter", function () { showFeedback(value); });
+        label.addEventListener("mouseleave", function () { showFeedback(pendingValue); });
+        input.addEventListener("focus", function () { showFeedback(value); });
+        input.addEventListener("blur", function () { showFeedback(pendingValue); });
+
         label.appendChild(input);
         label.appendChild(mark);
         label.appendChild(name);
@@ -246,12 +255,16 @@
       }(v));
     }
 
+    function showFeedback(value) {
+      el.qFeedback.textContent = value === null ? "" : FEEDBACK[value - 1];
+    }
+
     function setValue(value) {
       pendingValue = value;
       dotInputs.forEach(function (input) {
         input.checked = Number(input.value) === value;
       });
-      el.qFeedback.textContent = value === null ? "" : FEEDBACK[value - 1];
+      showFeedback(value);
     }
 
     function advance() {

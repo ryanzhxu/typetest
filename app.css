@@ -372,6 +372,13 @@ main {
   gap: var(--space-2);
 }
 
+@media (max-width: 30rem) {
+  .question-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* ---------- Reveal view ---------- */
 
 .reveal-card {
