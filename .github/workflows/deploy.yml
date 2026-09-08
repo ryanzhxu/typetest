@@ -1,9 +1,24 @@
 name: deploy
+
+# A pull request runs the tests and stops there. Only a push to main deploys.
+# Before this split the workflow ran on push alone, so a pull request showed no
+# checks at all and told a reviewer nothing.
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Deploys to main queue rather than cancel: a cancelled deploy can leave the
+# live site on an older build than the branch. Pull requests are keyed by ref,
+# so a new push to one supersedes its own earlier run and nobody else's.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -11,13 +26,36 @@ jobs:
         with:
           node-version: '22'
       - run: npm install
+      # Chromium is not optional here. test/smoke.test.js and
+      # test/viewport.test.js throw under CI rather than skip when it is
+      # missing, because a silent skip would wave the deploy through green
+      # without anything having loaded the page.
       - run: npx playwright install --with-deps chromium
       - run: npm test
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      # scripts/build-og.js draws the social cards in a real browser, so this
+      # install is for the deploy itself, not for the tests.
+      - run: npx playwright install --with-deps chromium
       - name: Stage only the public site
         run: node scripts/stage.js public
       - name: Render the social cards and icons into the staged site
         run: node scripts/build-og.js public
-      - run: npx -y wrangler@latest pages deploy public --project-name=personality --branch=main
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Deploy
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npx -y wrangler@latest pages deploy public --project-name=personality --branch=main
+      - name: Skip deploy, no token configured
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::warning title=Deploy skipped::CLOUDFLARE_API_TOKEN is not set, so nothing was published."
