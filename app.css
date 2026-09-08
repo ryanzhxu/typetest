@@ -171,6 +171,12 @@ main {
 
 .btn-primary:hover { transform: translateY(-1px); }
 
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .btn-secondary {
   background: transparent;
   color: var(--text);
@@ -372,8 +378,14 @@ main {
   gap: var(--space-2);
 }
 
+.question-actions-primary {
+  display: flex;
+  gap: var(--space-2);
+}
+
 @media (max-width: 30rem) {
-  .question-actions {
+  .question-actions,
+  .question-actions-primary {
     flex-direction: column;
     align-items: stretch;
   }
