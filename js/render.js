@@ -17,12 +17,6 @@
     "Strongly the second one"
   ];
 
-  /* How long a chosen dot stays on screen before the next question replaces
-     it. Long enough to see the choice land, short enough not to be a wait.
-     Tests set it to 0: at the default, thirty-six questions is nine seconds
-     of sleeping per run. */
-  var ADVANCE_MS = 250;
-
   var ONES = [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
@@ -61,6 +55,7 @@
       qFeedback: document.getElementById("q-feedback"),
       btnSkip: document.getElementById("btn-skip"),
       btnBack: document.getElementById("btn-back"),
+      btnNext: document.getElementById("btn-next"),
 
       revealCode: document.getElementById("reveal-code"),
       revealName: document.getElementById("reveal-name"),
@@ -118,11 +113,10 @@
     var INITIAL_NAV = nav;
     var INITIAL_CODE = navCode;
 
-    /* null until the reader picks a dot. There is no default any more: with
-       no Next button to press past, a pre-selected middle would record an
-       answer nobody gave. */
+    /* null until the reader picks a dot. There is no default: a pre-selected
+       middle would leave Next clickable before the reader had chosen
+       anything, and pressing it would record an answer nobody gave. */
     var pendingValue = null;
-    var advanceTimer = null;
     var activeView = "intro";
     var firstRender = true;
     var focusedView = null;
@@ -224,19 +218,10 @@
         name.className = "visually-hidden";
         name.textContent = FEEDBACK[value - 1];
 
-        /* Both events only ever update the reading. What commits is a
-           pointer, and detail is how that is known: it is the click count,
-           so a real mouse click or a tap carries 1 and a click the keyboard
-           synthesised carries 0. Chromium fires a trusted click when an
-           arrow key walks a radio group, so advancing on any click at all
-           would end keyboard answering at the first arrow press. Measured in
-           Chromium: arrow 0, Space 0, mouse 1, touch tap 1. The keyboard
-           commits with Enter instead, below. */
+        /* Choosing a dot only ever updates the reading. It never commits:
+           the reader presses Next (or Enter) when the choice is the one they
+           want to keep. */
         input.addEventListener("change", function () { setValue(value); });
-        input.addEventListener("click", function (e) {
-          setValue(value);
-          if (e.detail > 0) { scheduleAdvance(); }
-        });
 
         /* Preview only, never a commit: hovering or tabbing onto a dot shows
            what choosing it would mean, and leaving it falls back to whatever
@@ -265,6 +250,7 @@
         input.checked = Number(input.value) === value;
       });
       showFeedback(value);
+      el.btnNext.disabled = value === null;
     }
 
     function advance() {
@@ -273,22 +259,6 @@
       pendingValue = null;
       flow.answer(value);
       render();
-    }
-
-    function cancelAdvance() {
-      if (advanceTimer === null) { return; }
-      clearTimeout(advanceTimer);
-      advanceTimer = null;
-    }
-
-    /* A second dot chosen inside the window replaces the first, rather than
-       queueing a second advance that would skip the following question. */
-    function scheduleAdvance() {
-      cancelAdvance();
-      advanceTimer = setTimeout(function () {
-        advanceTimer = null;
-        advance();
-      }, SG.render.ADVANCE_MS);
     }
 
     function renderQuestion() {
@@ -463,15 +433,17 @@
       render();
     });
 
+    el.btnNext.addEventListener("click", function () {
+      advance();
+    });
+
     el.btnSkip.addEventListener("click", function () {
-      cancelAdvance();
       pendingValue = null;
       flow.skip();
       render();
     });
 
     el.btnBack.addEventListener("click", function () {
-      cancelAdvance();
       pendingValue = flow.back();
       render();
     });
@@ -566,13 +538,11 @@
       var tag = document.activeElement ? document.activeElement.tagName : "";
       if (e.key >= "1" && e.key <= "7") {
         e.preventDefault();
-        cancelAdvance();
         setValue(Number(e.key));
         dotInputs[Number(e.key) - 1].focus();
       } else if (e.key === "Enter") {
         if (tag === "BUTTON") { return; }
         e.preventDefault();
-        cancelAdvance();
         advance();
       }
     });
@@ -580,5 +550,5 @@
     render();
   }
 
-  SG.render = { mount: mount, ADVANCE_MS: ADVANCE_MS };
+  SG.render = { mount: mount };
 }(typeof window !== "undefined" ? window : globalThis));

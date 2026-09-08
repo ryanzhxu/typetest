@@ -65,17 +65,12 @@ function assertNoLeakedNumbers(body) {
   assert.ok(!/margin/i.test(body), "the word margin leaked onto the page");
 }
 
-/* Choosing a dot advances on a timer. At the shipped 250ms a thirty-six
-   question run would sleep for nine seconds, in every test that takes one, so
-   the runs below set the delay to zero and one dedicated test checks that the
-   default delay is real. */
-async function instantAdvance(page) {
-  await page.evaluate(() => { window.SG.render.ADVANCE_MS = 0; });
-}
-
+/* Choosing a dot never commits on its own: each iteration picks the dot,
+   then presses Next to record it and move to the following question. */
 async function answerDot(page, value, count) {
   for (let i = 0; i < count; i += 1) {
     await page.click('#q-dots input[value="' + value + '"]');
+    await page.click("#btn-next");
   }
 }
 
@@ -115,7 +110,6 @@ test(
         };
       });
 
-      await instantAdvance(page);
       await page.click("#btn-start");
       await answerNeutral(page, 36);
       await page.waitForSelector("#view-reveal:not([hidden])");
@@ -167,7 +161,6 @@ test(
         };
       });
 
-      await instantAdvance(page);
       await page.click("#btn-start");
       await answerDecisive(page, 36);
       await page.waitForSelector("#view-reveal:not([hidden])");
@@ -297,7 +290,6 @@ test("landing on a type URL shows that type with no intro, and offers the test",
 
     assertNoLeakedNumbers(await page.textContent("body"));
 
-    await instantAdvance(page);
     await page.click("#btn-take-test");
     await page.waitForSelector("#view-question:not([hidden])");
     assert.strictEqual(new URL(page.url()).pathname, "/", "starting the test must return to the root URL");
@@ -366,7 +358,6 @@ test("finishing the test leaves the address bar at the result's own URL", { skip
     const errors = trackErrors(page);
     await page.goto(site.url + "/");
 
-    await instantAdvance(page);
     await page.click("#btn-start");
     await answerDecisive(page, 36);
     await page.waitForSelector("#view-reveal:not([hidden])");
@@ -455,7 +446,6 @@ test("the tab title travels with the URL", { skip: !chromium }, async () => {
     assert.strictEqual(new URL(page.url()).pathname, "/enfj");
     assert.strictEqual(await page.title(), "Warm Front (ENFJ)", "Back must restore the title, not only the view");
 
-    await instantAdvance(page);
     await page.click("#btn-take-test");
     await page.waitForSelector("#view-question:not([hidden])");
     assert.strictEqual(new URL(page.url()).pathname, "/");
@@ -488,7 +478,6 @@ test("returning to the intro puts the address bar back at the root", { skip: !ch
     const errors = trackErrors(page);
 
     await page.goto(site.url + "/");
-    await instantAdvance(page);
     await page.click("#btn-start");
     await answerDecisive(page, 36);
     await page.waitForSelector("#view-reveal:not([hidden])");
@@ -624,13 +613,12 @@ test("all sixteen gallery cards render at the same size", { skip: !chromium }, a
   }
 });
 
-test("the seven dots answer a question in one tap, and the progress bar tracks it", { skip: !chromium }, async () => {
+test("the seven dots only select; Next commits the choice and the progress bar tracks it", { skip: !chromium }, async () => {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
     const errors = trackErrors(page);
     await page.goto(site.url + "/");
-    await instantAdvance(page);
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
@@ -642,18 +630,21 @@ test("the seven dots answer a question in one tap, and the progress bar tracks i
     );
     assert.strictEqual(
       await page.locator("#q-dots input:checked").count(), 0,
-      "nothing may be pre-selected: with no Next to press past, that would answer for the reader"
+      "nothing may be pre-selected: that would leave Next answerable for the reader"
     );
+    assert.strictEqual(await page.locator("#btn-next").isDisabled(), true, "Next has nothing to commit yet");
 
     const first = await page.textContent("#q-statement-a");
     assert.strictEqual(await page.textContent("#q-progress"), "Zero down, thirty-six to go");
     assert.strictEqual(await page.locator("#q-progress-fill").evaluate((e) => e.style.width), "0%");
 
-    /* One tap. No second press, no drag. */
+    /* Choosing a dot never advances by itself. */
     await page.click('#q-dots input[value="2"]');
-    await page.waitForFunction(
-      (was) => document.getElementById("q-statement-a").textContent !== was, first
-    );
+    assert.strictEqual(await page.textContent("#q-statement-a"), first, "a chosen dot must not advance on its own");
+    assert.strictEqual(await page.locator("#btn-next").isDisabled(), false, "Next unlocks once a dot is chosen");
+
+    await page.click("#btn-next");
+    assert.notStrictEqual(await page.textContent("#q-statement-a"), first, "Next must advance");
     assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
     const fill = await page.locator("#q-progress-fill").evaluate((e) => e.style.width);
     assert.ok(parseFloat(fill) > 0 && parseFloat(fill) < 100, "progress bar should have moved, got " + fill);
@@ -670,7 +661,6 @@ test("Back returns to the previous question with that answer still selected", { 
     const page = await browser.newPage();
     const errors = trackErrors(page);
     await page.goto(site.url + "/");
-    await instantAdvance(page);
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
@@ -678,6 +668,7 @@ test("Back returns to the previous question with that answer still selected", { 
 
     const first = await page.textContent("#q-statement-a");
     await page.click('#q-dots input[value="6"]');
+    await page.click("#btn-next");
     await page.waitForFunction((was) => document.getElementById("q-statement-a").textContent !== was, first);
     assert.strictEqual(await page.locator("#btn-back").isVisible(), true);
 
@@ -697,15 +688,13 @@ test("Back returns to the previous question with that answer still selected", { 
 });
 
 test("an arrow key moves along the dots without committing, Enter commits", { skip: !chromium }, async () => {
-  /* Auto-advance on every selection would end keyboard answering at the first
-     arrow press. change fires for an arrow key, click does not, and only
-     click advances. */
+  /* Neither a digit nor an arrow key ever advances: only Enter (or clicking
+     Next) commits. */
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
     const errors = trackErrors(page);
     await page.goto(site.url + "/");
-    await instantAdvance(page);
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
@@ -714,8 +703,6 @@ test("an arrow key moves along the dots without committing, Enter commits", { sk
     assert.strictEqual(await page.locator("#q-dots input:checked").inputValue(), "3");
     assert.strictEqual(await page.textContent("#q-statement-a"), first, "a digit must not advance on its own");
 
-    /* Chromium fires a trusted click for each of these, so this walks several
-       in a row: one that slipped through would move the run on. */
     for (const value of ["4", "5", "6"]) {
       await page.keyboard.press("ArrowRight");
       assert.strictEqual(await page.locator("#q-dots input:checked").inputValue(), value);
@@ -736,9 +723,7 @@ test("an arrow key moves along the dots without committing, Enter commits", { sk
   }
 });
 
-test("auto-advance really is on a delay, and a second choice inside it replaces the first", { skip: !chromium }, async () => {
-  /* Every other run above sets ADVANCE_MS to 0, so without this the shipped
-     delay would never be exercised at all. */
+test("changing the choice before pressing Next replaces it, not adds a second answer", { skip: !chromium }, async () => {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
@@ -746,21 +731,15 @@ test("auto-advance really is on a delay, and a second choice inside it replaces 
     await page.goto(site.url + "/");
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
-    assert.ok(
-      await page.evaluate(() => window.SG.render.ADVANCE_MS >= 150),
-      "the shipped delay must be long enough to see a choice land"
-    );
 
     const first = await page.textContent("#q-statement-a");
     await page.click('#q-dots input[value="1"]');
-    assert.strictEqual(await page.textContent("#q-statement-a"), first, "the choice must be visible before it advances");
-
-    /* Changing your mind inside the window must move on once, not twice. */
     await page.click('#q-dots input[value="7"]');
-    await page.waitForFunction((was) => document.getElementById("q-statement-a").textContent !== was, first);
+    await page.click("#btn-next");
+    assert.notStrictEqual(await page.textContent("#q-statement-a"), first);
     assert.strictEqual(
       await page.textContent("#q-progress"), "One down, thirty-five to go",
-      "two dots inside one window must record one answer, not skip a question"
+      "changing the choice before Next must record one answer, not skip a question"
     );
 
     await page.click("#btn-back");
@@ -785,7 +764,6 @@ test("skipping moves on without recording an answer, and widens the honesty band
     const page = await browser.newPage();
     const errors = trackErrors(page);
     await page.goto(site.url + "/");
-    await instantAdvance(page);
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
