@@ -65,3 +65,39 @@ test("no statement names a letter or the four-letter code", () => {
     });
   });
 });
+
+test("every item names which pole it shows", () => {
+  items.core.concat(items.tiebreak).forEach((it, i) => {
+    assert.ok(it.show === "a" || it.show === "b",
+      "item " + i + " has show=" + JSON.stringify(it.show));
+  });
+});
+
+/* The whole reason the show field exists. Every item in this bank is keyed the
+   same direction: a is always the first pole letter. Show a on all of them and
+   agreeing would mean E, S, T and J every time, so an agreeable reader lands on
+   ESTJ whoever they are. Splitting the direction cancels that in the axis mean. */
+test("each axis is balanced within one, so agreeing never means the same letter twice over", () => {
+  [["core", items.core], ["tiebreak", items.tiebreak]].forEach(([bankName, bank]) => {
+    items.AXES.forEach((axis) => {
+      const inAxis = bank.filter((it) => it.axis === axis);
+      const shownA = inAxis.filter((it) => it.show === "a").length;
+      const shownB = inAxis.length - shownA;
+      assert.ok(Math.abs(shownA - shownB) <= 1,
+        bankName + " " + axis + " shows " + shownA + " a and " + shownB + " b");
+    });
+  });
+});
+
+test("no pole that reads as a fragment is ever the one on screen", () => {
+  const fragments = [
+    "I press buttons.",
+    "I would attend, briefly.",
+    "I see what we feel like.",
+    "I tidy instead of working, later."
+  ];
+  items.core.concat(items.tiebreak).forEach((it) => {
+    assert.ok(fragments.indexOf(it[it.show]) === -1,
+      "a fragment is on screen alone: " + it[it.show]);
+  });
+});
