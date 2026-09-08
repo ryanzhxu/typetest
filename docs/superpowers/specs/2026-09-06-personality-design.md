@@ -76,9 +76,21 @@ in you too."
 The core tension: an honest instrument wants length, a shareable quiz wants
 brevity. The split resolves it.
 
-- **Core:** 36 items, 9 per axis. Seven-point slider between two statements.
+- **Core:** 36 items, 9 per axis. Seven-point scale on one statement, running
+  from Agree to Disagree.
   "Neither, really" is always available, records as missing, and widens the
   band rather than inventing a preference.
+
+  **Amended 2026-09-07.** This read "Seven-point slider between two
+  statements". Paired poles were the more accurate instrument, because neither
+  end was the "yes", but the format forced a layout that broke on a phone: the
+  row could not shrink below 308px and hung outside a card whose content box is
+  262px at 390px. Each item now shows one pole. Both poles are still written,
+  and roughly half the items show the second rather than the first, so agreeing
+  does not always mean the same letter and acquiescence cancels in the axis
+  mean. The scoring is unchanged: js/render.js turns the value over at the view
+  boundary, so js/score.js still reads 1 as the first pole and 7 as the second.
+  See docs/superpowers/specs/2026-09-07-mobile-question-view.md.
 - **Scoring:** continuous, then thresholded. The continuous score and its
   uncertainty are computed and stored, never displayed.
 - **The branch:** if an axis falls inside the noise band, the reveal names the
