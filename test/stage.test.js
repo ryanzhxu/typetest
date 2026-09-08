@@ -140,3 +140,67 @@ test("stage refuses any source path, so a wrong argument cannot delete the repo"
     fs.rmSync(backup, { recursive: true, force: true });
   }
 });
+
+/* Regression. The live site serves index.html with max-age=0, must-revalidate
+   and app.css and js/ with max-age=14400, so for four hours after a deploy a
+   returning reader ran the new HTML against the old CSS and the old scripts.
+   That combination is not a degraded site, it is a broken one: the old
+   render.js filled #q-statement-a and #q-statement-b, which the new HTML does
+   not have, so no question text appeared at all; the old CSS laid the card out
+   in two columns, so the dot row sat off to the right; and the old render.js
+   advanced on a click, from before Next existed, so touching a dot skipped the
+   question. Stamping the asset URLs with the build's own content hash is what
+   stops the two halves ever being from different builds. */
+test("every staged page asks for this build's assets, by content hash", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "a3-stage-"));
+  try {
+    stage.stage(dir);
+    const id = stage.buildId(dir);
+    assert.match(id, /^[0-9a-f]{12}$/, "the build id must be a content hash");
+
+    const pages = fs.readdirSync(dir).filter((n) => n.endsWith(".html"));
+    assert.strictEqual(pages.length, 18, "one root page, sixteen types and the 404");
+
+    pages.forEach((name) => {
+      const html = fs.readFileSync(path.join(dir, name), "utf8");
+
+      /* The invariant that matters: nothing on a deployed page may ask for an
+         asset by a URL that outlives the build it belongs to. */
+      const bare = html.match(/(?:href|src)="\/?(?:app\.css|js\/[^"]+\.js)"/g) || [];
+      assert.deepStrictEqual(bare, [], name + " still asks for an unversioned asset");
+
+      const css = html.match(/href="\/?app\.css\?v=([0-9a-f]{12})"/g) || [];
+      assert.strictEqual(css.length, 1, name + " must link app.css exactly once");
+      assert.ok(css[0].includes(id), name + " links app.css at the wrong build id");
+
+      /* 404.html is a dead end with no scripts on it. Every page that runs the
+         app carries all eight, and all eight must move together. */
+      const js = html.match(/src="\/?js\/[a-z0-9-]+\.js\?v=([0-9a-f]{12})"/g) || [];
+      assert.strictEqual(js.length, name === "404.html" ? 0 : 8, name + " script count");
+      js.forEach((tag) => assert.ok(tag.includes(id), name + " loads a script at the wrong build id"));
+    });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the build id follows the asset contents, so a changed asset is a new URL", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "a3-stage-"));
+  try {
+    stage.stage(dir);
+    const before = stage.buildId(dir);
+
+    /* A constant, a date or the git SHA would all pass the test above and none
+       of them would notice this. Only the contents may decide the id. */
+    fs.appendFileSync(path.join(dir, "app.css"), "\n/* edited */\n");
+    assert.notStrictEqual(stage.buildId(dir), before, "a changed stylesheet must change the id");
+
+    stage.stage(dir);
+    assert.strictEqual(stage.buildId(dir), before, "identical contents must give an identical id");
+
+    fs.appendFileSync(path.join(dir, "js", "render.js"), "\n/* edited */\n");
+    assert.notStrictEqual(stage.buildId(dir), before, "a changed script must change the id");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
