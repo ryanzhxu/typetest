@@ -271,52 +271,56 @@ main {
   transition: width 0.2s ease;
 }
 
-/* The two statements sit at the two ends of the dot row, so each one visibly
-   owns its side. Stacked above the row, as they were, nothing said which end
-   meant which statement, and that is the reason nobody knew where to land. */
+/* One statement above the row it is answered on. The old two-column grid put a
+   statement at each end of the scale, so each visibly owned its side. With one
+   statement there is nothing to bracket, and the layout stops fighting the row:
+   the statement reads top to bottom, the scale reads left to right, and the two
+   directions no longer disagree on a phone. */
 .scale {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas:
-    "a b"
-    "dots dots";
-  gap: var(--space-3) var(--space-2);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .statement {
   font-family: var(--font-display);
-  font-size: 1.15rem;
-  line-height: 1.3;
+  font-size: 1.35rem;
+  line-height: 1.35;
 }
 
-.statement-a { grid-area: a; }
-.statement-b { grid-area: b; text-align: right; }
+.dot-scale {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
 
-/* Too narrow for two columns of serif. The row still runs left to right, so
-   the statements bracket it instead: first above, second below. */
-@media (max-width: 30rem) {
-  .scale {
-    grid-template-columns: 1fr;
-    grid-template-areas: "a" "dots" "b";
-    gap: var(--space-2);
-  }
-  .statement-b { text-align: left; }
+/* Which end is which. The old layout said it with the statements themselves,
+   and with one statement something still has to. */
+.dot-anchors {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .dot-row {
-  grid-area: dots;
   display: flex;
-  justify-content: space-between;
   align-items: center;
 }
 
+/* Each dot takes one seventh of whatever width there is, so the row can never
+   be wider than what holds it. min-width: 0 is the load-bearing half: a flex
+   item will not shrink below its own content size without it, and that is
+   exactly what pinned the old row at a rigid 308px. Inside a card whose content
+   box is 262px at 390px, that row escaped the card by 14px on an iPhone 13 Pro
+   and took the whole page 52px over at 320px. */
 .dot {
   position: relative;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
   min-height: 44px;
   cursor: pointer;
 }
@@ -388,6 +392,18 @@ main {
   .question-actions-primary {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  main { padding: var(--space-2) var(--space-3) var(--space-4); }
+  .site-header { padding: var(--space-2) var(--space-3); }
+  .question-card { padding: var(--space-3); }
+
+  /* The row runs to the card's edges rather than sitting inside its padding.
+     Forty pixels of padding is forty pixels the seven targets do not get, and
+     at 320px that is the difference between a 40px target and a 34px one. */
+  .dot-row {
+    margin-left: calc(var(--space-3) * -1);
+    margin-right: calc(var(--space-3) * -1);
   }
 }
 
