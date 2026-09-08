@@ -32,7 +32,10 @@ test("turning it over twice returns the value the reader pressed", () => {
   });
 });
 
-test("a skip stays a skip", () => {
+/* back() returns null when there is nothing behind the current question, and
+   js/render.js turns that value over before showing it. Nothing is still
+   nothing on either pole. */
+test("nothing to undo turns over into nothing", () => {
   assert.strictEqual(render.flip(null, { show: "b" }), null);
   assert.strictEqual(render.flip(null, { show: "a" }), null);
   assert.strictEqual(render.flip(null, null), null);

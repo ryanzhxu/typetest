@@ -31,6 +31,11 @@ const os = require("node:os");
 const serve = require("./serve.js");
 const stage = require("../scripts/stage.js");
 require("../js/ns.js");
+require("../js/i18n.js");
+require("../js/locale-en.js");
+require("../js/locale-zh-cn.js");
+require("../js/locale-zh-tw.js");
+require("../js/locale-zh-hk.js");
 require("../js/types.js");
 require("../js/items.js");
 const types = globalThis.SG.types;
@@ -781,11 +786,10 @@ test("changing the choice before pressing Next replaces it, not adds a second an
   }
 });
 
-test("skipping moves on without recording an answer, and widens the honesty band", { skip: !chromium }, async () => {
-  /* "This one does not apply" sits next to a middle dot that looks like it
-     and does the opposite: js/score.js counts the dot and narrows the band,
-     and counts a skip as nothing, then widens the band by SKIP_PENALTY. This
-     walks the button end to end to prove the two really do part ways. */
+test("the question offers two buttons and no third way past it", { skip: !chromium }, async () => {
+  /* There is no longer any way to decline a question, so there had better be
+     no button offering one. A leftover would record an answer js/score.js no
+     longer knows how to read. */
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
@@ -794,18 +798,154 @@ test("skipping moves on without recording an answer, and widens the honesty band
     await page.click("#btn-start");
     await page.waitForSelector("#view-question:not([hidden])");
 
-    const first = await page.textContent("#q-statement");
-    await page.click("#btn-skip");
-    assert.strictEqual(await page.textContent("#q-progress"), "One down, thirty-five to go");
-    assert.notStrictEqual(await page.textContent("#q-statement"), first, "a skip must move on");
-    assert.strictEqual(
-      await page.locator("#q-dots input:checked").count(), 0,
-      "the next question must arrive with nothing chosen"
+    assert.strictEqual(await page.locator("#btn-skip").count(), 0, "the skip button must be gone");
+    assert.deepStrictEqual(
+      await page.locator(".question-actions button:visible").evaluateAll(
+        (els) => els.map((e) => e.textContent.trim())
+      ),
+      ["Next"],
+      "the first question has nothing behind it, so Next stands alone"
     );
 
-    await answerNeutral(page, 35);
-    await page.waitForSelector("#view-reveal:not([hidden])");
+    await answerNeutral(page, 1);
+    assert.deepStrictEqual(
+      await page.locator(".question-actions button:visible").evaluateAll(
+        (els) => els.map((e) => e.textContent.trim())
+      ),
+      ["Back", "Next"],
+      "from the second question on, both buttons and only those two"
+    );
+
     assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("the last question names what pressing the button does", { skip: !chromium }, async () => {
+  /* The reader has to press to commit the thirty-sixth answer exactly as they
+     pressed for the other thirty-five. Only the word changes, so nobody
+     presses "Next" and lands somewhere that is not another question. */
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/");
+    await page.click("#btn-start");
+    await page.waitForSelector("#view-question:not([hidden])");
+
+    await answerNeutral(page, 35);
+    assert.strictEqual(await page.textContent("#q-progress"), "Thirty-five down, one to go");
+    assert.strictEqual(
+      (await page.textContent("#btn-next")).trim(), "See your result",
+      "the thirty-sixth question does not lead to a thirty-seventh"
+    );
+
+    await page.click('#q-dots input[value="4"]');
+    await page.click("#btn-next");
+    await page.waitForSelector("#view-reveal:not([hidden])");
+
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a Chinese page is Chinese before any JavaScript runs, and stays in its own locale",
+  { skip: !chromium }, async () => {
+  /* The generator exists so a crawler, and a reader with no JavaScript, sees
+     the copy. That has to hold for the Chinese pages too, and the whole
+     path-prefix scheme falls over if a link on one drops the reader back into
+     English. */
+  const I18N = globalThis.SG.i18n;
+  const raw = await (await fetch(site.url + "/zh-hk/isfj")).text();
+  assert.ok(raw.includes('<html lang="zh-Hant-HK" data-lang="zh-hk">'), "the raw HTML must declare its language");
+  assert.ok(raw.includes("<title>" + I18N.format("seo.title",
+    { name: I18N.type("ISFJ", "zh-hk").name, code: "ISFJ" }, "zh-hk") + "</title>"), "Chinese title");
+  assert.ok(raw.includes(I18N.t("type.oftenLabel", "zh-hk")), "Chinese chrome in the raw HTML");
+  assert.ok(raw.includes('href="/zh-hk/enfj"'), "the gallery must link inside the locale");
+  assert.ok(!raw.includes('href="/enfj"'), "a Chinese page must not link at the English pages");
+
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/zh-hk/isfj");
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(await page.getAttribute("html", "lang"), "zh-Hant-HK");
+    assert.strictEqual((await page.textContent("#type-name")).trim(), I18N.type("ISFJ", "zh-hk").name);
+
+    /* Browsing to another type must not walk out of the locale. */
+    await page.click("#btn-back-gallery");
+    await page.click('.gallery-card[href="/zh-hk/intj"]');
+    await page.waitForFunction(() => location.pathname === "/zh-hk/intj");
+    assert.strictEqual((await page.textContent("#type-name")).trim(), I18N.type("INTJ", "zh-hk").name);
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("the test itself runs in Chinese, and the address never leaves the locale",
+  { skip: !chromium }, async () => {
+  const I18N = globalThis.SG.i18n;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = trackErrors(page);
+    await page.goto(site.url + "/zh-hk/");
+    await page.click("#btn-start");
+    await page.waitForSelector("#view-question:not([hidden])");
+
+    assert.strictEqual((await page.textContent("#q-progress")).trim(), I18N.progress(0, 36, "zh-hk"));
+    assert.match(await page.textContent("#q-progress"), /\d/, "Chinese progress must use digits");
+    assert.strictEqual((await page.textContent("#btn-next")).trim(), I18N.t("question.next", "zh-hk"));
+    await page.click('#q-dots input[value="1"]');
+    assert.strictEqual((await page.textContent("#q-feedback")).trim(), I18N.t("feedback.1", "zh-hk"));
+
+    await answerNeutral(page, 36);
+    await page.waitForSelector("#view-reveal:not([hidden])");
+    const code = (await page.textContent("#reveal-code")).trim();
+    assert.strictEqual((await page.textContent("#reveal-name")).trim(), I18N.type(code, "zh-hk").name);
+
+    await page.click("#btn-keep-both");
+    await page.waitForSelector("#view-type:not([hidden])");
+    assert.strictEqual(new URL(page.url()).pathname, "/zh-hk/" + code.toLowerCase(),
+      "a Chinese result must get a Chinese address");
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
+  } finally {
+    await browser.close();
+  }
+});
+
+test("an unfinished locale is never offered to a reader who is not looking for it",
+  { skip: !chromium }, async () => {
+  /* The switcher, the sitemap and the hreflang sets are all driven by
+     meta.complete, so while the Chinese prose is still being written the
+     English site is exactly what it was. */
+  const I18N = globalThis.SG.i18n;
+  const unfinished = I18N.SUPPORTED.filter((loc) => !I18N.isComplete(loc));
+  const sitemap = await (await fetch(site.url + "/sitemap.xml")).text();
+  const root = await (await fetch(site.url + "/")).text();
+  unfinished.forEach((loc) => {
+    assert.ok(!sitemap.includes("/" + loc + "/"), "the sitemap offers the unfinished " + loc);
+    assert.ok(!root.includes('hreflang="' + I18N.HTML_LANG[loc] + '"'), "the root points at the unfinished " + loc);
+    assert.ok(!root.includes('href="/' + loc + '/"'), "the root links to the unfinished " + loc);
+  });
+
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(site.url + "/");
+    if (unfinished.length === I18N.SUPPORTED.length - 1) {
+      assert.strictEqual(await page.locator("#lang-switch").isHidden(), true,
+        "with one finished locale there is nothing to switch between");
+    }
+    /* Typing the address still works, which is how the copy gets reviewed. */
+    const res = await fetch(site.url + "/zh-hk/isfj");
+    assert.strictEqual(res.status, 200, "an unfinished locale must still be readable at its own address");
+    assert.ok((await res.text()).includes('name="robots" content="noindex, follow"'),
+      "an unfinished locale must be noindex");
   } finally {
     await browser.close();
   }

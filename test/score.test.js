@@ -43,14 +43,10 @@ test("a mixed axis straddling the midline is close", () => {
   assert.strictEqual(r.close, true);
 });
 
-test("skipped answers widen the band", () => {
-  const full = score.axisResult([2, 2, 2, 2, 2, 2, 2, 2, 2]);
-  const some = score.axisResult([2, 2, 2, 2, 2, 2, null, null, null]);
-  assert.ok(some.half > full.half, "skips must widen, got " + some.half + " vs " + full.half);
-});
-
-test("all skipped is maximally uncertain and centred", () => {
-  const r = score.axisResult([null, null, null, null, null, null, null, null, null]);
+test("an axis with no answers is maximally uncertain and centred", () => {
+  /* The flow never produces this, but the early return is what stops the
+     maths dividing by zero and handing back NaN for every field. */
+  const r = score.axisResult([]);
   assert.strictEqual(r.est, 50);
   assert.strictEqual(r.half, score.HALF_MAX);
   assert.strictEqual(r.close, true);

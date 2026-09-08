@@ -77,18 +77,28 @@ function buildId(dir) {
   return h.digest("hex").slice(0, 12);
 }
 
-/* One id for the whole build rather than one per file. The eight scripts share
-   a single SG namespace and are written against each other, so a build is the
-   unit that has to move together anyway, and a per-file hash would only buy a
-   spared request at the cost of letting the halves diverge again. */
+/* One id for the whole build rather than one per file. The thirteen scripts
+   share a single SG namespace and are written against each other, so a build
+   is the unit that has to move together anyway, and a per-file hash would only
+   buy a spared request at the cost of letting the halves diverge again. */
+
+/* Every page, at every depth. The locale directories put pages two segments
+   deep, and a page that missed the stamp would ask for an unversioned asset
+   and get whatever the last build left in the reader's cache, which is the
+   exact failure the stamp exists to prevent. */
+function htmlFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap(function (entry) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) { return htmlFiles(full); }
+    return entry.name.endsWith(".html") ? [full] : [];
+  });
+}
+
 function stampAssets(dir, id) {
-  fs.readdirSync(dir).filter(function (name) {
-    return name.endsWith(".html");
-  }).forEach(function (name) {
-    const file = path.join(dir, name);
-    /* Both forms of every path: the root page keeps app.css and js/ relative,
-       and build-types.js absolutises them to /app.css and /js/ on the sixteen
-       type pages, which are served one level deep. */
+  htmlFiles(dir).forEach(function (file) {
+    /* Both forms of every path: the English root page keeps app.css and js/
+       relative, and build-types.js absolutises them to /app.css and /js/ on
+       every other page. */
     const html = fs.readFileSync(file, "utf8")
       .replace(/href="(\/?)app\.css"/g, 'href="$1app.css?v=' + id + '"')
       .replace(/src="(\/?)(js\/[a-z0-9-]+\.js)"/g, 'src="$1$2?v=' + id + '"');
@@ -112,8 +122,8 @@ function stage(outDir) {
   });
 
   buildTypes.build(out);
-  /* After the generator, so the root page and all sixteen type pages are
-     stamped by the one pass. */
+  /* After the generator, so every root and every type page, in every locale,
+     is stamped by the one pass. */
   stampAssets(out, buildId(out));
   return fs.readdirSync(out).sort();
 }

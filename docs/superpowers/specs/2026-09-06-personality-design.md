@@ -117,8 +117,13 @@ people answer to confirm what they can see. Removing it makes the test calmer
 
   **Amended 2026-09-07.** The example here was "做咗 9 題，仲有 27 題", which is
   Cantonese (做咗, 仲有) and contradicts the register correction in section 7.
-  The 書面語 wording is still to be decided, along the lines of "已完成 9 題，
-  尚餘 27 題". Do not copy the old example.
+  Do not copy the old example.
+
+  **Settled 2026-09-08, and shipped.** The three wordings are
+  "已完成 9 題，尚餘 27 題" (`zh-hk`), "已完成 9 題，還剩 27 題" (`zh-tw`) and
+  "已完成 9 题，还剩 27 题" (`zh-cn`). They live as one template per locale in
+  `js/locale-*.js` and are filled by `SG.i18n.progress`, which spells the
+  numeral out for English and uses the digit for every Chinese locale.
 - Whole flow is keyboard-operable.
 
 ### 5.2 The reveal
@@ -211,9 +216,17 @@ a bare `zh-Hant`. Hong Kong is written Cantonese 口語, not Traditional Mandari
 
 **Amended 2026-09-07: two locales, and Hong Kong is 書面語, not 口語.**
 
-Two locales ship, not four: `en` and `zh-Hant-HK`. `zh-Hans` and `zh-Hant-TW`
-are dropped from the plan. They can be added later and each would pay its own
-transcreation pass, which is understood.
+**Superseded 2026-09-08 on the count, upheld on the register: four locales
+ship, and Cantonese is not one of them.**
+
+`en`, `zh-Hans-CN`, `zh-Hant-TW` and `zh-Hant-HK`. The internal ids are `en`,
+`zh-cn`, `zh-tw` and `zh-hk`, because they are also the URL path segments.
+`yue-Hant-HK` is deliberately absent: the register correction below is what
+Hong Kong gets, and it is one locale, not two.
+
+Each of the three Chinese locales was written by hand, and none was converted
+from another. The 2026-09-07 note that the other two were "dropped from the
+plan" no longer holds; they were added back and paid their own pass.
 
 The register for `zh-Hant-HK` is corrected. It is **Standard Written Chinese
 in Traditional characters with Hong Kong conventions**, which is what Hong
@@ -221,28 +234,57 @@ Kong newspapers, government and formal writing actually use. It is *not*
 written Cantonese.
 
 - Hong Kong glyph and word choices: 裏 over 裡, 着 over 著, 網絡 over 網路,
-  質素 over 素質.
-- Standard written grammar throughout. None of 佢, 咗, 嘅, 冇, 睇, 喺, 嘢.
+  質素 over 素質, 互聯網 over 網際網路, 甚麼 over 什麼.
+- Standard written grammar throughout. None of 佢, 咗, 嘅, 冇, 睇, 喺, 嘢, and
+  `test/locales.test.js` adds 嗰, 乜, 咁, 唔 and 哋 to that list.
 - The six regional type names this section previously named as the reason for
   a Cantonese locale (避風塘, 搞手, 冇迫力, 加場, 星期日下晝, 拆嘢佬) must be
   re-decided against this register. 避風塘 survives, being an ordinary written
   noun. 拆嘢佬 and 冇迫力 do not, being Cantonese.
 
-`check-locales.js` inverts accordingly. Its Hong Kong direction previously
-guarded *for* Cantonese vocabulary and must now guard *against* it, while
-still catching Taiwan Mandarin word choices and Simplified glyphs.
+  **Settled 2026-09-08.** 避風塘 and 加場 shipped as the Hong Kong names for
+  ISFJ and ESFP. 星期日下晝 became 星期日下午, 下晝 being Cantonese. 冇迫力,
+  拆嘢佬 and 搞手 are gone. The full table of forty-eight names is in
+  `docs/handoffs/piece-b-chinese-locale.md`.
+
+The check inverts accordingly. The `chinese-i18n` skill's Hong Kong direction
+guards *for* Cantonese vocabulary; ours guards *against* it, in all three
+Chinese locales, while still catching wrong-region word choices and wrong-
+script glyphs. Do not "fix" our check to match the skill.
 
 Each locale is written by hand from the English meaning. Nothing is converted
-from anything else. Six of the sixteen type names have a genuinely better
-regional word (避風塘, 搞手, 冇迫力, 加場, 星期日下晝, 拆嘢佬) and a glyph
-converter produces none of them.
+from anything else. A glyph converter changes characters and not words, and
+would produce 履历 where the Simplified word is 简历.
 
-`check-locales.js` runs in CI and guards four directions: Mandarin into
-Cantonese, Cantonese into Taiwan Mandarin, wrong script either way, and
-wrong-region vocabulary. Plus key parity. It lives in the `chinese-i18n` skill.
+**Shipped 2026-09-08 as `test/locales.test.js`, not the skill's
+`check-locales.js`.** Eleven tests, in the repo rather than in the skill so
+they run under `npm test` with no bundle to assemble: key parity, `data-i18n`
+coverage against `index.html`, placeholder parity, the Cantonese blacklist,
+script purity over a 961-couple table, wrong-region vocabulary, a
+no-locale-is-a-copy check, house style, and the publish gate. Every one of the
+eleven was mutation-tested against a deliberately injected fault of its own
+kind.
+
+The lists are deliberately narrow. 係 is not a Cantonese marker (關係, 係數),
+and 他 and 不 are not Mandarin markers (其他, 不過). A noisy check gets muted,
+and a muted check guards nothing.
 
 A human read per region per wave is required. No test can judge whether a joke
-landed.
+landed. **This has not happened yet and it is what gates publication:** a
+locale is only offered to readers and to search engines once `meta.complete`
+is true in its dictionary, and that flag is what the sitemap, the hreflang
+sets, the `noindex` tag and the language switcher all read.
+
+### 7.1 URLs
+
+English is the site root. Every other locale is one path segment deep:
+`/zh-hk/` and `/zh-hk/enfj`. Permanent, for SEO, and chosen over a
+`?lang=` query string, which search engines would treat as one page.
+
+A locale root keeps its trailing slash. Cloudflare Pages 308s the directory
+form `/zh-hk` to `/zh-hk/`, so every canonical and every link says `/zh-hk/`
+or it points at a redirect. Type pages stay files (`zh-hk/enfj.html`) for the
+mirror image of that reason. The generator emits 69 files.
 
 ## 8. Storage — the one open decision
 
@@ -317,6 +359,16 @@ A, A3 and the deeper type pages have shipped, so the string keys are frozen
 and the content that B has to carry is finished. This is the order the rule
 below asks for: the sections were deepened before B rather than after, so
 they get written once in each language instead of twice.
+
+**Amended 2026-09-08: B is four locales again, and it ships in two waves.**
+Wave 1 landed: the runtime, the URL scheme, the region fonts, the CI checks,
+and a voice sample (the interface, the sixteen names and the sixteen
+one-liners) in all three Chinese locales. Wave 2 is the remaining ~30,000
+words. The gate between them is a native read per region.
+
+Growing B from one locale to three sharpens the ordering rule below rather
+than weakening it: anything shipping after B now pays for three transcreation
+passes, not one.
 
 **C. The sixteen type pages.** The largest writing job, ~960 of the ~1,744
 strings. Independent of A and B once the page template exists, and can run in

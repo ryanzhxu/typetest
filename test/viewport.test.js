@@ -142,3 +142,54 @@ test("the question card sits in the middle of the screen, not under the header",
     await browser.close();
   }
 });
+
+/* The switcher is hidden while only English is complete, so nothing above
+   would ever measure it. The day someone flips meta.complete on a locale file
+   it appears on every page at once, and at 320px four locale names beside the
+   brand and the nav link do not fit: the header squeezed each name into a
+   one-character-wide column and still ran 15px past the viewport.
+
+   Build the finished state here rather than waiting for that day. */
+SIZES.forEach(function (size) {
+  const w = size[0];
+  const h = size[1];
+  test("the header still fits at " + w + "px with every locale offered", { skip: !chromium }, async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage({ viewport: { width: w, height: h } });
+      await page.goto(PAGE_URL);
+
+      const overflow = await page.evaluate(() => {
+        const I18N = window.SG.i18n;
+        const nav = document.getElementById("lang-switch");
+        nav.innerHTML = "";
+        nav.hidden = false;
+        I18N.SUPPORTED.forEach((loc) => {
+          const a = document.createElement("a");
+          a.className = "lang-link";
+          a.href = I18N.pathFor(loc, "/");
+          a.textContent = I18N.ENDONYM[loc];
+          if (loc === I18N.current) { a.setAttribute("aria-current", "true"); }
+          nav.appendChild(a);
+        });
+        const de = document.documentElement;
+        const names = Array.prototype.map.call(nav.querySelectorAll("a"), (a) => {
+          const r = a.getBoundingClientRect();
+          return { text: a.textContent, w: Math.round(r.width), h: Math.round(r.height) };
+        });
+        return { over: de.scrollWidth - de.clientWidth, names: names };
+      });
+
+      assert.strictEqual(overflow.over, 0,
+        "the header overflows by " + overflow.over + "px with four locales offered");
+      /* A name taller than it is wide means the column collapsed and it is
+         wrapping one character per line, which fits and is unreadable. */
+      overflow.names.forEach((n) => {
+        assert.ok(n.w >= n.h, "the locale name " + n.text + " wrapped into a " +
+          n.w + "x" + n.h + " column");
+      });
+    } finally {
+      await browser.close();
+    }
+  });
+});

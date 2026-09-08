@@ -107,31 +107,13 @@ test("keeping both preserves the second code and opens the type page", () => {
   assert.strictEqual(f.result().secondCode, before);
 });
 
-test("a skip records a missing answer, it does not silently drop the item", () => {
-  /* Comparing a skipped run against a fully-answered run is NOT enough. The
-     band widens merely because n fell from 9 to 8 via se = sd/sqrt(n), so a
-     skip() that dropped the item entirely still passes such a test (12.13 vs
-     a baseline 11.43). Pin the exact half-width instead: it is reachable only
-     if the null was recorded AND SKIP_PENALTY was applied to it. */
+test("there is no way to decline a question", () => {
+  /* The button is gone from the page, so the method has to be gone from the
+     flow as well. Left behind, it would still record a null that js/score.js
+     no longer knows how to read. */
   const f = flowMod.create();
-  f.start();
-  let done = false;
-  for (let i = 0; i < items.core.length; i += 1) {
-    if (f.state().item.axis === "EI" && !done) { f.skip(); done = true; }
-    else { f.answer(7); }
-  }
-  const r = f.result();
-
-  const expected = 50 * 1.96 * (score.SD_FLOOR / Math.sqrt(8)) + score.SKIP_PENALTY;
-  assert.ok(Math.abs(r.axes.EI.half - expected) < 0.01,
-    "expected ~" + expected.toFixed(2) + ", got " + r.axes.EI.half +
-    "; a dropped skip would give ~" + (expected - score.SKIP_PENALTY).toFixed(2));
-
-  const full = flowMod.create();
-  full.start();
-  for (let i = 0; i < items.core.length; i += 1) { full.answer(7); }
-  assert.strictEqual(r.axes.SN.half, full.result().axes.SN.half,
-    "a skip must not touch another axis");
+  assert.strictEqual(typeof f.skip, "undefined");
+  assert.strictEqual(typeof score.SKIP_PENALTY, "undefined");
 });
 
 test("when two axes are close, the one nearer the midline is chosen", () => {
@@ -187,13 +169,6 @@ test("back steps to the previous question and hands over the answer it undid", (
   assert.strictEqual(f.back(), 6, "back must return the answer it removed");
   assert.strictEqual(f.state().index, 0);
   assert.strictEqual(f.state().item, first, "back must land on the same question");
-});
-
-test("back on a skipped question returns null, not undefined", () => {
-  const f = flowMod.create();
-  f.start();
-  f.skip();
-  assert.strictEqual(f.back(), null);
 });
 
 test("there is nothing behind the first question", () => {
