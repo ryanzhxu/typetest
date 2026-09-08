@@ -262,8 +262,10 @@ test("the raw HTML of /enfj carries ENFJ's head and copy, with no JavaScript run
 
   assert.ok(!/myers|briggs|mbti/i.test(html.split("</head>")[0]), "the indicator reached the head");
 
-  /* A page served at /enfj cannot reach a relative app.css. */
-  assert.ok(html.includes('href="/app.css"'), "generated pages need absolute asset paths");
+  /* A page served at /enfj cannot reach a relative app.css. The ?v= is the
+     build's own content hash, from scripts/stage.js: it is what stops this
+     page ever loading the last build's stylesheet out of the browser cache. */
+  assert.match(html, /href="\/app\.css\?v=[0-9a-f]{12}"/, "generated pages need absolute, versioned asset paths");
   assert.ok(!/src="js\//.test(html), "a relative script path survived into a generated page");
 
   /* A sitemap is a hint. Links are how the sixteen pages actually get
@@ -283,8 +285,10 @@ test("the raw HTML of the root page carries the sixteen links too", async () => 
     "/ is the page a crawler reaches first and must link to all sixteen"
   );
   /* The root alone keeps relative asset paths, so index.html still opens
-     from the filesystem. Generating it must not have changed that. */
-  assert.ok(html.includes('href="app.css"'), "the root must keep relative asset paths");
+     from the filesystem. Generating it must not have changed that. The
+     leading slash is the whole point of the assertion, so match on its
+     absence rather than on the string: the ?v= build stamp is expected. */
+  assert.match(html, /href="app\.css\?v=[0-9a-f]{12}"/, "the root must keep relative asset paths");
   assert.ok(html.includes("<title>Personality</title>"), "the root must keep its own head");
   assert.ok(!html.includes("data-initial-type"), "the root is not a type page");
 });
