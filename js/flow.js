@@ -6,7 +6,7 @@
     var view = "intro";
     var queue = [];        /* items currently being asked */
     var index = 0;
-    var responses = {};    /* axis -> array of number|null */
+    var responses = {};    /* axis -> array of numbers, 1-7 in pole space */
     var result = null;
     var tiebroken = {};    /* axis -> true once its tiebreak has been run */
 
@@ -85,12 +85,11 @@
         view = "question";
       },
       answer: function (value) { record(value); },
-      skip: function () { record(null); },
       /* Step back one question and hand the answer being undone to the caller,
          so the view can show it selected again. queue[index] after the
          decrement is the item whose answer this is, and its axis array holds
          that answer last, because pushes happen in queue order. Returns null
-         when there is nothing to undo, and for an item that was skipped.
+         when there is nothing to undo.
 
          A tiebreak run starts a fresh queue at index 0, so canBack is false on
          its first question. That is deliberate: stepping from a tiebreak back
@@ -100,6 +99,8 @@
         if (view !== "question" || index === 0) { return null; }
         index -= 1;
         var removed = responses[queue[index].axis].pop();
+        /* Every asked item pushes a value, so the pop always finds one. The
+           guard is here for the empty array, not for a missing answer. */
         return removed === undefined ? null : removed;
       },
       canBack: function () { return view === "question" && index > 0; },

@@ -51,6 +51,48 @@
   color-scheme: light;
 }
 
+/* ---------- Chinese ---------- */
+
+/* Fraunces and Karla have no CJK glyph at all, so a Chinese page in them falls
+   through to whatever the system happens to have and the two locales look like
+   two different sites. Rebinding the same two tokens is all it takes: every
+   rule downstream already reads --font-display and --font-body.
+
+   Google Fonts serves the Noto CJK families with automatic unicode-range
+   subsetting, so this costs no build step and no pyftsubset pass. The Latin
+   families stay first in each stack: a Chinese page still carries English
+   (the brand, the four-letter codes) and those should keep their own face.
+
+   Serif throughout for Chinese, per the design spec. Hong Kong, Taiwan and the
+   mainland each get their own face: the three regions draw a number of shared
+   characters differently (骨, 直, 每), and a reader notices a mainland-shaped
+   glyph on a Traditional page. */
+:root[data-lang="zh-hk"] {
+  --font-display: 'Fraunces', 'Noto Serif HK', 'Source Han Serif HK', 'PingFang HK', serif;
+  --font-body: 'Karla', 'Noto Sans HK', 'PingFang HK', 'Microsoft JhengHei', sans-serif;
+}
+
+:root[data-lang="zh-tw"] {
+  --font-display: 'Fraunces', 'Noto Serif TC', 'Source Han Serif TC', 'PingFang TC', serif;
+  --font-body: 'Karla', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+}
+
+:root[data-lang="zh-cn"] {
+  --font-display: 'Fraunces', 'Noto Serif SC', 'Source Han Serif SC', 'PingFang SC', serif;
+  --font-body: 'Karla', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* text-wrap: balance does not stop a break inside a compound, so a heading can
+   split 避風 from 塘. line-break: strict is what holds a CJK compound and its
+   punctuation together. */
+:root[lang|="zh"] h1,
+:root[lang|="zh"] h2,
+:root[lang|="zh"] h3,
+:root[lang|="zh"] .statement,
+:root[lang|="zh"] .gallery-name {
+  line-break: strict;
+}
+
 /* ---------- Reset-ish ---------- */
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -115,8 +157,46 @@ input:focus-visible,
 
 /* ---------- Layout ---------- */
 
+/* Real anchors. The control stays out of the way: a reader uses it once, and
+   never again in the session.
+
+   flex-basis: 100% puts it on its own row under the brand. Four locale names,
+   a brand and a nav link do not fit across 320px, and without this the header
+   squeezed each name into a one-character-wide column and still overflowed by
+   15px. Its own row costs one line of height and fits at any width. */
+.lang-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  flex-basis: 100%;
+}
+
+.lang-link {
+  color: var(--muted);
+  /* Or a narrow column wraps a name down the page one character at a time. */
+  white-space: nowrap;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0.6rem 0.2rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lang-link:hover { color: var(--text); }
+
+/* The language you are already reading is named but not offered. */
+.lang-link[aria-current="true"] {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+}
+
 .site-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
@@ -341,6 +421,12 @@ main {
   justify-content: center;
   min-height: 44px;
   cursor: pointer;
+  /* The label is a 44px square that a round mark sits inside. A phone paints
+     the tap highlight over the label's box, not over the circle, so a tap on
+     a dot flashed a grey square around it. Suppress the highlight and let
+     :checked answer the tap instead: it lands on the same gesture, and it is
+     the shape the reader aimed at. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Invisible but still a real radio: it keeps arrow-key group behaviour, the
@@ -396,21 +482,24 @@ main {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
 }
 
-.question-actions-primary {
-  display: flex;
-  gap: var(--space-2);
-}
+/* Next holds the right edge whether or not Back is beside it. space-between
+   cannot do that: on the first question Back is hidden, it takes no width,
+   and the one remaining button would slide to the left edge and move again
+   on the second question. */
+#btn-next { margin-left: auto; }
 
 @media (max-width: 30rem) {
-  .question-actions,
-  .question-actions-primary {
+  .question-actions {
     flex-direction: column;
     align-items: stretch;
   }
+
+  /* In a column, margin-left is the cross axis, and an auto margin there
+     beats align-items: stretch and shrinks the button to its text. */
+  #btn-next { margin-left: 0; }
 
   main { padding: var(--space-2) var(--space-3) var(--space-4); }
   .site-header { padding: var(--space-2) var(--space-3); }

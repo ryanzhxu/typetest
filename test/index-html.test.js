@@ -77,7 +77,8 @@ test("asset paths are relative and countable, so the generator can absolutise th
     assert.strictEqual(countOf(HTML, 'href="' + name + '"'), 1, name + " must be relative and appear once");
     assert.strictEqual(countOf(HTML, 'href="/' + name + '"'), 0, name + " must not already be absolute");
   });
-  assert.strictEqual(countOf(HTML, 'src="js/'), 8);
+  /* Eight app scripts, js/i18n.js, and one dictionary per locale. */
+  assert.strictEqual(countOf(HTML, 'src="js/'), 13);
   assert.strictEqual(countOf(HTML, 'href="/app.css"'), 0, "the root page keeps relative paths so file:// works");
   assert.strictEqual(countOf(HTML, 'src="/js/'), 0);
 });

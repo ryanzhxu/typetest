@@ -1,7 +1,7 @@
 "use strict";
-/* Deploy-time only. Reads index.html and emits one page per type, each with
-   its own head meta and its own copy already in the HTML. Nothing here ships
-   to the browser.
+/* Deploy-time only. Reads index.html and emits one page per type per locale,
+   each with its own head meta and its own copy already in the HTML. Nothing
+   here ships to the browser.
 
    Every helper below throws rather than guessing. A generator that quietly
    emits sixteen pages with the homepage's title is worse than one that fails
@@ -14,9 +14,30 @@ const ROOT = path.resolve(__dirname, "..");
 const ORIGIN = "https://personality.ryanxu.dev";
 
 require(path.join(ROOT, "js", "ns.js"));
+require(path.join(ROOT, "js", "i18n.js"));
+require(path.join(ROOT, "js", "locale-en.js"));
+require(path.join(ROOT, "js", "locale-zh-cn.js"));
+require(path.join(ROOT, "js", "locale-zh-tw.js"));
+require(path.join(ROOT, "js", "locale-zh-hk.js"));
 require(path.join(ROOT, "js", "types.js"));
+
 const BY_CODE = globalThis.SG.types.byCode;
-const SECTIONS = globalThis.SG.types.SECTIONS;
+const I18N = globalThis.SG.i18n;
+const LOCALES = I18N.SUPPORTED;
+
+/* Only complete locales are offered to a search engine. The rest are still
+   generated, so they can be read and reviewed at their real addresses, but
+   they carry noindex, they are absent from sitemap.xml, and no hreflang set
+   points at them. A half-translated page in the index is worse than no page
+   at all, and it is the flip of one flag in a locale file to let one in. */
+const INDEXED = I18N.completed();
+
+/* Fraunces and Karla have no CJK glyph at all, so a Chinese page asks for the
+   Noto serif and sans of its own region as well. Google Fonts subsets these
+   by unicode-range on its own, which is why this needs no pyftsubset pass and
+   no new build dependency. app.css binds whichever arrived to the same two
+   font tokens the English pages use. */
+const CJK_SUBFAMILY = { "zh-cn": "SC", "zh-tw": "TC", "zh-hk": "HK" };
 
 function escapeText(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -53,41 +74,136 @@ function setHidden(html, id, hidden) {
   }, 'element with id="' + id + '"');
 }
 
-function titleFor(code, type) {
-  return type.name + " (" + code + ")";
+/* ---- the static translator ---- */
+
+/* js/i18n.js rewrites [data-i18n] through the DOM. There is no DOM here and
+   the project takes no build dependency to get one, so the same two
+   attributes are honoured against the text.
+
+   Every data-i18n element on this site holds text and nothing else, which is
+   why index.html wraps the asterisk paragraph's translated half in its own
+   span. That is a real constraint, so it throws rather than silently
+   swallowing markup: a nested tag inside a translated element would be
+   discarded, and the page would still look plausible. */
+function translateStatic(html, locale) {
+  let count = 0;
+  let out = html.replace(
+    /<([a-z0-9]+)([^>]*\sdata-i18n="([^"]+)"[^>]*)>([^<]*)<\/\1>/g,
+    (whole, tag, attrs, key, inner) => {
+      count += 1;
+      return "<" + tag + attrs + ">" + escapeText(I18N.t(key, locale)) + "</" + tag + ">";
+    }
+  );
+  const marked = (html.match(/\sdata-i18n="/g) || []).length;
+  if (count !== marked) {
+    throw new Error(
+      "build-types: " + marked + " elements carry data-i18n but only " + count +
+      " could be rewritten. A translated element must hold text and no markup."
+    );
+  }
+
+  /* data-i18n-attr="aria-label:question.scaleLabel,title:x.y" */
+  out = out.replace(/<([a-z0-9]+)([^>]*\sdata-i18n-attr="([^"]+)"[^>]*)>/g,
+    (whole, tag, attrs, spec) => {
+      let next = attrs;
+      spec.split(",").forEach((pair) => {
+        const at = pair.indexOf(":");
+        const name = pair.slice(0, at).trim();
+        const value = escapeAttr(I18N.t(pair.slice(at + 1).trim(), locale));
+        const re = new RegExp('\\s' + name.replace(/-/g, "\\-") + '="[^"]*"');
+        if (!re.test(next)) {
+          throw new Error("build-types: data-i18n-attr names " + name + ", which the element does not have");
+        }
+        next = next.replace(re, ' ' + name + '="' + value + '"');
+      });
+      return "<" + tag + next + ">";
+    });
+  return out;
 }
 
-function descriptionFor(code, type) {
-  return type.line + " What " + code +
-    " looks like up close, and the second type that lives in it.";
+/* ---- head ---- */
+
+function titleFor(code, locale) {
+  const t = I18N.type(code, locale);
+  return I18N.format("seo.title", { name: t.name, code: code }, locale);
 }
 
-function headFor(code, type) {
-  const title = escapeAttr(titleFor(code, type));
-  const desc = escapeAttr(descriptionFor(code, type));
-  const url = ORIGIN + "/" + code.toLowerCase();
-  /* Rendered by scripts/build-og.js into the same staged directory. Absolute,
-     because a scraper resolves this against nothing. */
-  const image = ORIGIN + "/og/" + code.toLowerCase() + ".png";
-  return [
-    "  <title>" + escapeText(titleFor(code, type)) + "</title>",
-    '  <meta name="description" content="' + desc + '">',
-    '  <link rel="canonical" href="' + url + '">',
+function descriptionFor(code, locale) {
+  const t = I18N.type(code, locale);
+  return I18N.format("seo.description", { line: t.line, code: code }, locale);
+}
+
+/* rest is the locale-free path: "/" for a root page, "/enfj" for a type. */
+function urlFor(locale, rest) {
+  return ORIGIN + I18N.pathFor(locale, rest);
+}
+
+/* Reciprocal by construction: every indexed locale's page lists the same set,
+   so there is no direction in which the pairs can disagree. x-default points
+   at English, which is the locale a reader with no matching preference gets.
+
+   An unindexed locale is left out entirely rather than listed and marked: an
+   hreflang pointing at a noindex page is a contradiction, and Search Console
+   reports it as one. */
+function alternates(rest) {
+  if (INDEXED.length < 2) { return []; }
+  return INDEXED.map((loc) =>
+    '  <link rel="alternate" hreflang="' + I18N.HTML_LANG[loc] + '" href="' +
+      urlFor(loc, rest) + '">'
+  ).concat([
+    '  <link rel="alternate" hreflang="x-default" href="' + urlFor(I18N.DEFAULT, rest) + '">'
+  ]);
+}
+
+function robotsLine(locale) {
+  return INDEXED.indexOf(locale) === -1
+    ? ['  <meta name="robots" content="noindex, follow">']
+    : [];
+}
+
+function headBlock(locale, rest, title, desc, image) {
+  const url = urlFor(locale, rest);
+  return robotsLine(locale).concat([
+    "  <title>" + escapeText(title) + "</title>",
+    '  <meta name="description" content="' + escapeAttr(desc) + '">',
+    '  <link rel="canonical" href="' + url + '">'
+  ]).concat(alternates(rest)).concat([
     '  <meta property="og:type" content="website">',
     '  <meta property="og:url" content="' + url + '">',
     '  <meta property="og:site_name" content="Personality">',
-    '  <meta property="og:title" content="' + title + '">',
-    '  <meta property="og:description" content="' + desc + '">',
+    '  <meta property="og:locale" content="' + I18N.HTML_LANG[locale].replace(/-/g, "_") + '">',
+    '  <meta property="og:title" content="' + escapeAttr(title) + '">',
+    '  <meta property="og:description" content="' + escapeAttr(desc) + '">',
     '  <meta property="og:image" content="' + image + '">',
     '  <meta property="og:image:width" content="1200">',
     '  <meta property="og:image:height" content="630">',
-    '  <meta property="og:image:alt" content="' + title + '">',
+    '  <meta property="og:image:alt" content="' + escapeAttr(title) + '">',
     '  <meta name="twitter:card" content="summary_large_image">',
-    '  <meta name="twitter:title" content="' + title + '">',
-    '  <meta name="twitter:description" content="' + desc + '">',
+    '  <meta name="twitter:title" content="' + escapeAttr(title) + '">',
+    '  <meta name="twitter:description" content="' + escapeAttr(desc) + '">',
     '  <meta name="twitter:image" content="' + image + '">'
-  ].join("\n");
+  ]).join("\n");
 }
+
+/* Rendered by scripts/build-og.js into the same staged directory. Absolute,
+   because a scraper resolves this against nothing. One card per type, shared
+   by every locale: the cards are drawn in Fraunces and Karla, which hold no
+   CJK glyph, so a Chinese card needs a CJK face in that generator first. */
+function cardFor(rest) {
+  return ORIGIN + "/og" + (rest === "/" ? "/index" : rest) + ".png";
+}
+
+function headFor(code, locale) {
+  const rest = "/" + code.toLowerCase();
+  return headBlock(locale, rest, titleFor(code, locale), descriptionFor(code, locale), cardFor(rest));
+}
+
+function rootHeadFor(locale) {
+  return headBlock(locale, "/", I18N.t("seo.rootTitle", locale),
+    I18N.t("seo.rootDescription", locale), cardFor("/"));
+}
+
+/* ---- body pieces ---- */
 
 function listItems(values) {
   return values.map((v) => "<li>" + escapeText(v) + "</li>").join("");
@@ -95,11 +211,13 @@ function listItems(values) {
 
 /* The sixteen cards, rendered into the static HTML in the same sorted order
    and with the same structure js/render.js builds, so a crawler sees the
-   links without running any JavaScript and the two never disagree. */
-function galleryItems(byCode) {
-  return Object.keys(byCode).sort().map(function (code) {
-    const t = byCode[code];
-    return '<li><a class="gallery-card" href="/' + code.toLowerCase() + '">' +
+   links without running any JavaScript and the two never disagree. Every
+   href carries the page's own locale prefix: a Chinese card linking to the
+   English page would drop the reader out of their language. */
+function galleryItems(locale) {
+  return Object.keys(BY_CODE).sort().map(function (code) {
+    const t = I18N.type(code, locale);
+    return '<li><a class="gallery-card" href="' + I18N.pathFor(locale, "/" + code.toLowerCase()) + '">' +
       '<span class="gallery-code">' + escapeText(code) + "</span>" +
       '<span class="gallery-name">' + escapeText(t.name) + "</span>" +
       '<span class="gallery-line">' + escapeText(t.line) + "</span>" +
@@ -107,11 +225,25 @@ function galleryItems(byCode) {
   }).join("");
 }
 
+/* The same anchors js/render.js builds, and only for locales that are
+   complete, so a reader is never handed a half-translated page from a
+   finished one. With one complete locale there is nothing to switch between
+   and the nav stays hidden. */
+function langSwitchItems(locale, rest) {
+  if (INDEXED.length < 2) { return ""; }
+  return INDEXED.map(function (loc) {
+    return '<a class="lang-link" href="' + I18N.pathFor(loc, rest) + '"' +
+      ' hreflang="' + I18N.HTML_LANG[loc] + '" lang="' + I18N.HTML_LANG[loc] + '"' +
+      (loc === locale ? ' aria-current="true"' : "") + ">" +
+      escapeText(I18N.ENDONYM[loc]) + "</a>";
+  }).join("");
+}
+
 /* The same markup js/render.js builds, so the static page and the rendered one
    never disagree. Written into every page because these five sections are now
    most of what a crawler, and a reader with no JavaScript, would come for. */
-function sectionsHtml(type) {
-  return SECTIONS.map(function (section) {
+function sectionsHtml(type, locale) {
+  return I18N.sections(locale).map(function (section) {
     return '<section class="type-section">' +
       "<h3>" + escapeText(section.heading) + "</h3>" +
       type[section.key].map(function (paragraph) {
@@ -134,47 +266,89 @@ function dropBuildComment(html) {
   );
 }
 
-/* The root page is generated too, and only so it carries the sixteen links.
-   / is the page a crawler reaches first, and without this it would be the one
-   page on the site with no outbound links. Everything else about it, the head,
-   the <body> tag, every view's hidden state and the relative asset paths that
-   let index.html open from the filesystem, is left exactly as it is. */
-function buildRoot(indexHtml) {
+/* Every locale's own <html lang> and the data-lang app.css reads to pick a
+   CJK face. Stamped here rather than left to js/i18n.js so the right face is
+   chosen on the first paint, before any script has run. */
+function setLang(html, locale) {
+  return replaceOnce(html, /<html lang="en">/,
+    () => '<html lang="' + I18N.HTML_LANG[locale] + '" data-lang="' + locale + '">',
+    "<html> tag");
+}
+
+function addCjkFont(html, locale) {
+  const sub = CJK_SUBFAMILY[locale];
+  if (!sub) { return html; }
+  return replaceOnce(html, /(<link href="https:\/\/fonts\.googleapis\.com\/css2\?family=Fraunces[^"]*" rel="stylesheet">)/,
+    (whole) => whole +
+      '\n  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+' + sub +
+      ':wght@400;500;700&family=Noto+Serif+' + sub + ':wght@400;600;700&display=swap" rel="stylesheet">',
+    "Google Fonts stylesheet link");
+}
+
+/* A page below the root cannot reach a relative app.css, and a page two
+   segments deep (/zh-hk/enfj) cannot reach it by accident either, which is
+   what the one-level-deep English pages were quietly relying on. Everything
+   except the English root is absolutised. */
+function absolutiseAssets(html) {
+  let out = replaceOnce(html, /href="app\.css"/, () => 'href="/app.css"', 'href="app.css"');
+  ["favicon.svg", "favicon-32.png", "apple-touch-icon.png"].forEach((name) => {
+    out = replaceOnce(out, new RegExp('href="' + name.replace(/\./g, "\\.") + '"'),
+      () => 'href="/' + name + '"', 'href="' + name + '"');
+  });
+  const jsHits = (out.match(/src="js\//g) || []).length;
+  if (jsHits !== 13) {
+    throw new Error("build-types: expected 13 script tags, found " + jsHits);
+  }
+  return out.replace(/src="js\//g, 'src="/js/');
+}
+
+/* ---- pages ---- */
+
+/* The root page is generated for its head, its sixteen links and its
+   language. / is the page a crawler reaches first, and without the links it
+   would be the one page on the site with no outbound ones. The English root
+   keeps the relative asset paths that let index.html open by double-clicking
+   it; every other root is one segment deep and cannot. */
+function buildRoot(indexHtml, locale) {
+  const loc = locale || I18N.DEFAULT;
   let html = dropBuildComment(indexHtml);
-  html = fillById(html, "gallery-grid", galleryItems(BY_CODE));
+  html = replaceOnce(
+    html,
+    /<!-- BUILD:HEAD:START -->[\s\S]*?<!-- BUILD:HEAD:END -->/,
+    () => "<!-- BUILD:HEAD:START -->\n" + rootHeadFor(loc) + "\n  <!-- BUILD:HEAD:END -->",
+    "BUILD:HEAD marker pair"
+  );
+  html = setLang(html, loc);
+  html = addCjkFont(html, loc);
+  if (loc !== I18N.DEFAULT) { html = absolutiseAssets(html); }
+  html = translateStatic(html, loc);
+  html = fillById(html, "gallery-grid", galleryItems(loc));
+  const items = langSwitchItems(loc, "/");
+  if (items) { html = setHidden(html, "lang-switch", false); }
+  html = fillById(html, "lang-switch", items);
   return html;
 }
 
-function buildPage(indexHtml, code, type) {
+function buildPage(indexHtml, code, locale) {
   if (!/^[A-Z]{4}$/.test(code) || !BY_CODE[code]) {
     throw new Error("build-types: unknown type code " + code);
   }
+  const loc = locale || I18N.DEFAULT;
+  const type = I18N.type(code, loc);
+  const rest = "/" + code.toLowerCase();
   let html = dropBuildComment(indexHtml);
 
   html = replaceOnce(
     html,
     /<!-- BUILD:HEAD:START -->[\s\S]*?<!-- BUILD:HEAD:END -->/,
-    () => "<!-- BUILD:HEAD:START -->\n" + headFor(code, type) + "\n  <!-- BUILD:HEAD:END -->",
+    () => "<!-- BUILD:HEAD:START -->\n" + headFor(code, loc) + "\n  <!-- BUILD:HEAD:END -->",
     "BUILD:HEAD marker pair"
   );
 
-  /* A page served at /enfj cannot reach a relative app.css. The root page
-     keeps relative paths so index.html still opens from the filesystem. */
-  html = replaceOnce(html, /href="app\.css"/, () => 'href="/app.css"', 'href="app.css"');
-  /* The three icons are relative for the same reason app.css is, and have to
-     be absolutised for the same reason: a page served at /enfj resolves a
-     relative href against /, which happens to work, but only by accident of
-     these pages being one level deep. Do not rely on that. */
-  [["favicon.svg", "favicon.svg"], ["favicon-32.png", "favicon-32.png"],
-   ["apple-touch-icon.png", "apple-touch-icon.png"]].forEach(([name]) => {
-    html = replaceOnce(html, new RegExp('href="' + name.replace(".", "\\.") + '"'),
-      () => 'href="/' + name + '"', 'href="' + name + '"');
-  });
-  const jsHits = (html.match(/src="js\//g) || []).length;
-  if (jsHits !== 8) {
-    throw new Error("build-types: expected 8 script tags, found " + jsHits);
-  }
-  html = html.replace(/src="js\//g, 'src="/js/');
+  html = setLang(html, loc);
+  html = addCjkFont(html, loc);
+  html = absolutiseAssets(html);
+  html = translateStatic(html, loc);
 
   html = replaceOnce(html, /<body>/, () => '<body data-initial-type="' + code + '">', "<body> tag");
 
@@ -188,18 +362,29 @@ function buildPage(indexHtml, code, type) {
   html = fillById(html, "type-code", escapeText(code));
   html = fillById(html, "type-name", escapeText(type.name));
   html = fillById(html, "type-opening", escapeText(type.opening));
-  html = fillById(html, "type-best", escapeText("You are at your best " + type.best));
-  html = fillById(html, "type-undone", escapeText("You come undone " + type.undone));
+  html = fillById(html, "type-best",
+    escapeText(I18N.format("type.best", { clause: type.best }, loc)));
+  html = fillById(html, "type-undone",
+    escapeText(I18N.format("type.undone", { clause: type.undone }, loc)));
   html = fillById(html, "type-chips", listItems(type.chips));
   html = fillById(html, "type-often", listItems(type.often));
-  html = fillById(html, "type-sections", sectionsHtml(type));
-  html = fillById(html, "gallery-grid", galleryItems(BY_CODE));
+  html = fillById(html, "type-sections", sectionsHtml(type, loc));
+  html = fillById(html, "gallery-grid", galleryItems(loc));
+  const items = langSwitchItems(loc, rest);
+  if (items) { html = setHidden(html, "lang-switch", false); }
+  html = fillById(html, "lang-switch", items);
 
   return html;
 }
 
+/* Indexed locales only. A noindex page in the sitemap asks a search engine to
+   fetch something it has been told to ignore. */
 function buildSitemap(codes) {
-  const urls = [ORIGIN + "/"].concat(codes.map((c) => ORIGIN + "/" + c.toLowerCase()));
+  const urls = [];
+  INDEXED.forEach((loc) => {
+    urls.push(urlFor(loc, "/"));
+    codes.forEach((c) => urls.push(urlFor(loc, "/" + c.toLowerCase())));
+  });
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -217,21 +402,31 @@ function build(outDir) {
   }
   fs.mkdirSync(outDir, { recursive: true });
   const written = [];
+
   /* <code>.html, not <code>/index.html. Cloudflare Pages serves <name>.html at
      the extensionless path /<name> with a plain 200, but it appends a trailing
      slash to the directory form: /enfj then 308s to /enfj/. Measured on the
      live site. The directory form therefore made every canonical, every
-     sitemap entry and every gallery href point at a redirect. */
-  codes.forEach((code) => {
-    const file = path.join(outDir, code.toLowerCase() + ".html");
-    fs.writeFileSync(file, buildPage(indexHtml, code, BY_CODE[code]));
-    written.push(file);
+     sitemap entry and every gallery href point at a redirect.
+
+     A locale is a directory for exactly that reason in reverse: /zh-hk is the
+     directory form and 308s to /zh-hk/, which is why every canonical and
+     every link to a locale root carries the trailing slash. */
+  LOCALES.forEach((loc) => {
+    const dir = loc === I18N.DEFAULT ? outDir : path.join(outDir, loc);
+    fs.mkdirSync(dir, { recursive: true });
+    codes.forEach((code) => {
+      const file = path.join(dir, code.toLowerCase() + ".html");
+      fs.writeFileSync(file, buildPage(indexHtml, code, loc));
+      written.push(file);
+    });
+    /* stage.js copies index.html first and then calls build(), so the English
+       root here deliberately overwrites the verbatim copy. Do not reorder
+       those two. */
+    const rootFile = path.join(dir, "index.html");
+    fs.writeFileSync(rootFile, buildRoot(indexHtml, loc));
+    written.push(rootFile);
   });
-  /* stage.js copies index.html first and then calls build(), so this
-     deliberately overwrites the verbatim copy. Do not reorder those two. */
-  const rootFile = path.join(outDir, "index.html");
-  fs.writeFileSync(rootFile, buildRoot(indexHtml));
-  written.push(rootFile);
 
   const sitemap = path.join(outDir, "sitemap.xml");
   fs.writeFileSync(sitemap, buildSitemap(codes));
@@ -240,8 +435,9 @@ function build(outDir) {
 }
 
 module.exports = {
-  ORIGIN, escapeText, escapeAttr, titleFor, descriptionFor,
-  galleryItems, sectionsHtml, buildRoot, buildPage, buildSitemap, build
+  ORIGIN, LOCALES, INDEXED, escapeText, escapeAttr, titleFor, descriptionFor,
+  translateStatic, alternates, galleryItems, langSwitchItems, sectionsHtml,
+  buildRoot, buildPage, buildSitemap, build
 };
 
 if (require.main === module) {

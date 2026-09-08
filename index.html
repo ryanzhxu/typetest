@@ -41,24 +41,26 @@
 </head>
 <body>
   <header class="site-header">
-    <p class="brand">Personality</p>
-    <button type="button" id="btn-nav-sixteen" class="link-btn">See all sixteen</button>
+    <p class="brand" data-i18n="brand">Personality</p>
+    <button type="button" id="btn-nav-sixteen" class="link-btn" data-i18n="nav.sixteen">See all sixteen</button>
+    <nav id="lang-switch" class="lang-switch" aria-label="Language"
+         data-i18n-attr="aria-label:lang.label" hidden></nav>
   </header>
 
   <main>
     <section id="view-intro" class="view">
       <div class="intro-card">
-        <p class="eyebrow">A four-letter personality test</p>
-        <h1>Personality</h1>
-        <p class="lede">Thirty-six questions on a seven-point scale. If two types are genuinely close for you, we say so instead of guessing.</p>
-        <button type="button" id="btn-start" class="btn btn-primary">Start</button>
-        <p class="intro-note">No account. Nothing saved. Nothing sent anywhere.</p>
+        <p class="eyebrow" data-i18n="intro.eyebrow">A four-letter personality test</p>
+        <h1 data-i18n="intro.title">Personality</h1>
+        <p class="lede" data-i18n="intro.lede">Thirty-six questions on a seven-point scale. If two types are genuinely close for you, we say so instead of guessing.</p>
+        <button type="button" id="btn-start" class="btn btn-primary" data-i18n="intro.start">Start</button>
+        <p class="intro-note" data-i18n="intro.note">No account. Nothing saved. Nothing sent anywhere.</p>
       </div>
     </section>
 
     <section id="view-question" class="view" hidden>
       <div class="question-card">
-        <h2 id="q-heading" class="visually-hidden">Question</h2>
+        <h2 id="q-heading" class="visually-hidden" data-i18n="question.heading">Question</h2>
         <div class="progress">
           <p id="q-progress" class="progress-text" aria-live="polite"></p>
           <div class="progress-track">
@@ -74,20 +76,23 @@
                for an item that shows its second pole. -->
           <div class="dot-scale">
             <p class="dot-anchors" aria-hidden="true">
-              <span>Agree</span>
-              <span>Disagree</span>
+              <span data-i18n="question.agree">Agree</span>
+              <span data-i18n="question.disagree">Disagree</span>
             </p>
             <div id="q-dots" class="dot-row" role="radiogroup"
-                 aria-label="How much do you agree with this statement"></div>
+                 aria-label="How much do you agree with this statement"
+                 data-i18n-attr="aria-label:question.scaleLabel"></div>
           </div>
         </div>
         <p id="q-feedback" class="feedback-text" aria-live="polite"></p>
+        <!-- Two buttons and no more. Back is absent on the first question of a
+             run, because there is nothing behind it. The primary button reads
+             "Next" until the last question, where it reads "See your result":
+             js/render.js writes that word, so the label and the queue cannot
+             drift apart. -->
         <div class="question-actions">
-          <button type="button" id="btn-back" class="btn btn-secondary" hidden>Back</button>
-          <div class="question-actions-primary">
-            <button type="button" id="btn-skip" class="btn btn-secondary">This one does not apply</button>
-            <button type="button" id="btn-next" class="btn btn-primary" disabled>Next</button>
-          </div>
+          <button type="button" id="btn-back" class="btn btn-secondary" data-i18n="question.back" hidden>Back</button>
+          <button type="button" id="btn-next" class="btn btn-primary" disabled>Next</button>
         </div>
       </div>
     </section>
@@ -100,24 +105,24 @@
 
         <div id="second-self-card" class="second-self-card" hidden>
           <h3 id="second-self-name"></h3>
-          <p class="second-self-kicker">is in you too.</p>
+          <p class="second-self-kicker" data-i18n="reveal.alsoIn">is in you too.</p>
           <div class="blend-bar">
             <span id="blend-peach" class="blend-segment blend-peach"></span>
             <span id="blend-lilac" class="blend-segment blend-lilac"></span>
           </div>
           <div class="second-self-actions">
-            <button type="button" id="btn-settle" class="btn btn-secondary">Settle it</button>
-            <button type="button" id="btn-keep-both" class="btn btn-primary">Keep both</button>
+            <button type="button" id="btn-settle" class="btn btn-secondary" data-i18n="reveal.settle">Settle it</button>
+            <button type="button" id="btn-keep-both" class="btn btn-primary" data-i18n="reveal.keepBoth">Keep both</button>
           </div>
         </div>
 
-        <button type="button" id="btn-continue" class="btn btn-primary" hidden>Continue</button>
+        <button type="button" id="btn-continue" class="btn btn-primary" data-i18n="reveal.continue" hidden>Continue</button>
       </div>
     </section>
 
     <section id="view-type" class="view" hidden>
       <div class="type-card">
-        <button type="button" id="btn-back-gallery" class="link-btn" hidden>Back to the sixteen</button>
+        <button type="button" id="btn-back-gallery" class="link-btn" data-i18n="type.backToGallery" hidden>Back to the sixteen</button>
 
         <p id="type-code" class="type-code"></p>
         <h2 id="type-name" class="type-name"></h2>
@@ -131,36 +136,44 @@
         <div id="type-sections" class="type-sections"></div>
 
         <div class="often-block">
-          <p class="often-label">Often typed this way</p>
+          <p class="often-label" data-i18n="type.oftenLabel">Often typed this way</p>
           <ul id="type-often" class="pill-list"></ul>
-          <p class="asterisk-paragraph"><span aria-hidden="true">* </span>These are guesses, and we would rather say so. Not one of these people has sat the official test and published the result. Every celebrity list on the internet, ours included, is fans voting on strangers. Enjoy it as that.</p>
+          <p class="asterisk-paragraph"><span aria-hidden="true">* </span><span data-i18n="type.asterisk">These are guesses, and we would rather say so. Not one of these people has sat the official test and published the result. Every celebrity list on the internet, ours included, is fans voting on strangers. Enjoy it as that.</span></p>
         </div>
 
         <div id="type-test-cta" class="test-cta" hidden>
-          <p class="test-cta-line">Not sure this is you?</p>
-          <button type="button" id="btn-take-test" class="btn btn-primary">Take the test</button>
+          <p class="test-cta-line" data-i18n="type.ctaLine">Not sure this is you?</p>
+          <button type="button" id="btn-take-test" class="btn btn-primary" data-i18n="type.takeTest">Take the test</button>
         </div>
 
         <div id="share-block" class="share-block">
-          <p class="share-label">Save a card with your result.</p>
-          <button type="button" id="btn-share" class="btn btn-secondary">Share your card</button>
+          <p class="share-label" data-i18n="type.shareLabel">Save a card with your result.</p>
+          <button type="button" id="btn-share" class="btn btn-secondary" data-i18n="type.share">Share your card</button>
         </div>
 
-        <button type="button" id="btn-restart" class="btn btn-primary">Start over</button>
+        <button type="button" id="btn-restart" class="btn btn-primary" data-i18n="type.restart">Start over</button>
       </div>
     </section>
 
     <section id="view-sixteen" class="view" hidden>
       <div class="gallery-header">
-        <button type="button" id="btn-back-flow" class="link-btn">Back</button>
-        <h2>All sixteen</h2>
-        <p>No colour by type here. Names and words carry it.</p>
+        <button type="button" id="btn-back-flow" class="link-btn" data-i18n="gallery.back">Back</button>
+        <h2 data-i18n="gallery.title">All sixteen</h2>
+        <p data-i18n="gallery.note">No colour by type here. Names and words carry it.</p>
       </div>
       <ul id="gallery-grid" class="gallery-grid"></ul>
     </section>
   </main>
 
   <script defer src="js/ns.js"></script>
+  <!-- i18n.js before every locale-*.js, which call SG.i18n.register as they
+       load. English is registered first so it can be the fallback for a
+       locale still being written. -->
+  <script defer src="js/i18n.js"></script>
+  <script defer src="js/locale-en.js"></script>
+  <script defer src="js/locale-zh-cn.js"></script>
+  <script defer src="js/locale-zh-hk.js"></script>
+  <script defer src="js/locale-zh-tw.js"></script>
   <script defer src="js/score.js"></script>
   <script defer src="js/items.js"></script>
   <script defer src="js/types.js"></script>

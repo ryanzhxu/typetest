@@ -9,7 +9,7 @@ them is standalone any more.
 | File | Piece | Size | Blocked on |
 |---|---|---|---|
 | [piece-a2-zodiac.md](piece-a2-zodiac.md) | A2, zodiac | Small | Nothing |
-| [piece-b-chinese-locale.md](piece-b-chinese-locale.md) | B, `zh-Hant-HK` | Large, ~10,000 words of Chinese | Three staging decisions, listed in the file |
+| [piece-b-chinese-locale.md](piece-b-chinese-locale.md) | B, three Chinese locales | Wave 1 landed. ~30,000 words of Chinese left | A native read of the voice sample, per region |
 | [piece-d-traits.md](piece-d-traits.md) | D, traits | Medium | Nothing, but see the sequencing note |
 | [piece-e-storage-consent.md](piece-e-storage-consent.md) | E, storage and consent | Medium, mostly legal | A product decision on collecting data at all |
 
@@ -29,10 +29,18 @@ E is independent of all of it and can happen whenever, but it is listed in §11
 as the one blocking open question, because the wording on the result page
 cannot say "measured" until it exists.
 
-## State as of 2026-09-07
+## State as of 2026-09-08
 
 Pieces A, A2's predecessor A, and A3 are shipped and live at
-`personality.ryanxu.dev`. None of the four pieces below is started. The last
-session finished the type-page content expansion and the social cards, so the
-string keys these pieces build on are frozen and the English content they would
-translate is finished.
+`personality.ryanxu.dev`. The string keys these pieces build on are frozen and
+the English content they would translate is finished.
+
+B is the only one started. Its wave 1 shipped the locale runtime, the URL
+scheme, the fonts, the CI checks and a voice sample in all three Chinese
+locales, behind a per-locale `meta.complete` flag that keeps the unfinished
+pages out of the index and out of the switcher. Wave 2 is the writing. A2, D
+and E are still untouched.
+
+The ordering rule above still holds, and B growing from two locales to four
+sharpens it: anything shipping after B now pays for **three** transcreation
+passes, not one.

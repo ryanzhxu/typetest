@@ -20,10 +20,17 @@ test("the deploy directory holds the public site and nothing else", () => {
     /* favicon.svg is a source file so that staging alone yields a site with
        an icon. The two raster icons and og/ are NOT here: scripts/build-og.js
        renders those into this directory as a separate deploy step. */
+    /* One directory per Chinese locale, holding that locale's own seventeen
+       pages. English is the site root and has no directory of its own. */
     const expected = ["404.html", "app.css", "favicon.svg", "index.html", "js",
-                      "robots.txt", "sitemap.xml"]
+                      "robots.txt", "sitemap.xml", "zh-cn", "zh-hk", "zh-tw"]
       .concat(expectedTypes).sort();
     assert.deepStrictEqual(top, expected);
+
+    ["zh-cn", "zh-tw", "zh-hk"].forEach((loc) => {
+      assert.deepStrictEqual(fs.readdirSync(path.join(dir, loc)).sort(),
+        expectedTypes.concat(["index.html"]).sort(), loc + " is missing pages");
+    });
 
     /* This leak was shipped once already. Assert the negative directly. */
     ["docs", "test", "scripts", ".github", ".superpowers", "package.json",
@@ -34,7 +41,9 @@ test("the deploy directory holds the public site and nothing else", () => {
 
     const js = fs.readdirSync(path.join(dir, "js")).sort();
     assert.deepStrictEqual(js, [
-      "app.js", "flow.js", "items.js", "ns.js", "render.js", "score.js", "share.js", "types.js"
+      "app.js", "flow.js", "i18n.js", "items.js", "locale-en.js", "locale-zh-cn.js",
+      "locale-zh-hk.js", "locale-zh-tw.js", "ns.js", "render.js", "score.js",
+      "share.js", "types.js"
     ]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -158,11 +167,24 @@ test("every staged page asks for this build's assets, by content hash", () => {
     const id = stage.buildId(dir);
     assert.match(id, /^[0-9a-f]{12}$/, "the build id must be a content hash");
 
-    const pages = fs.readdirSync(dir).filter((n) => n.endsWith(".html"));
-    assert.strictEqual(pages.length, 18, "one root page, sixteen types and the 404");
+    /* Every page at every depth. A page in a locale directory that missed
+       the stamp would ask for an unversioned asset and get whatever the last
+       build left in the reader's cache, which is the exact failure the stamp
+       exists to prevent. */
+    function walk(at) {
+      return fs.readdirSync(at, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(at, entry.name);
+        if (entry.isDirectory()) { return entry.name === "js" ? [] : walk(full); }
+        return entry.name.endsWith(".html") ? [full] : [];
+      });
+    }
+    const pages = walk(dir);
+    assert.strictEqual(pages.length, 4 * 17 + 1,
+      "seventeen pages in each of four locales, and the 404");
 
-    pages.forEach((name) => {
-      const html = fs.readFileSync(path.join(dir, name), "utf8");
+    pages.forEach((file) => {
+      const name = path.basename(file);
+      const html = fs.readFileSync(file, "utf8");
 
       /* The invariant that matters: nothing on a deployed page may ask for an
          asset by a URL that outlives the build it belongs to. */
@@ -174,9 +196,9 @@ test("every staged page asks for this build's assets, by content hash", () => {
       assert.ok(css[0].includes(id), name + " links app.css at the wrong build id");
 
       /* 404.html is a dead end with no scripts on it. Every page that runs the
-         app carries all eight, and all eight must move together. */
+         app carries all thirteen, and all thirteen must move together. */
       const js = html.match(/src="\/?js\/[a-z0-9-]+\.js\?v=([0-9a-f]{12})"/g) || [];
-      assert.strictEqual(js.length, name === "404.html" ? 0 : 8, name + " script count");
+      assert.strictEqual(js.length, name === "404.html" ? 0 : 13, name + " script count");
       js.forEach((tag) => assert.ok(tag.includes(id), name + " loads a script at the wrong build id"));
     });
   } finally {

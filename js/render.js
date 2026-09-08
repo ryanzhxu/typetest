@@ -2,21 +2,11 @@
   "use strict";
   var SG = root.SG;
 
-  /* Dot feedback describes the answer just given, never the emerging type.
-
-     The middle reads "Somewhere in between" and not "Neither": in js/score.js
-     it counts as a real answer and narrows the honesty band, while the skip
-     button beside it counts as none and widens it. Two controls that sit
-     together and do opposite things have to say so. */
-  var FEEDBACK = [
-    "Strongly agree",
-    "Agree",
-    "Slightly agree",
-    "Somewhere in between",
-    "Slightly disagree",
-    "Disagree",
-    "Strongly disagree"
-  ];
+  /* Every user-facing string on this page comes from js/i18n.js. The dot
+     feedback, the seven-point scale words, the progress line and the number
+     words all moved there when the Chinese locales arrived, because each of
+     them differs per language in a way a shared implementation cannot hide:
+     English spells its numerals out and Chinese uses digits. */
 
   /* js/flow.js and js/score.js speak pole space, where 1 is the first pole and
      7 the second. The screen speaks agreement, where 1 is Strongly agree. For
@@ -26,32 +16,17 @@
 
      8 - v is its own inverse, so the one function serves both directions. */
   function flip(value, item) {
+    /* back() hands back null when there is nothing to undo. Nothing else
+       reaches here without a value. */
     if (value === null || value === undefined) { return null; }
     if (!item || item.show !== "b") { return value; }
     return 8 - value;
   }
 
-  var ONES = [
-    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-    "seventeen", "eighteen", "nineteen"
-  ];
-  var TENS = ["", "", "twenty", "thirty"];
-
-  /* Number to words, 0 through 36. Words in English so progress reads like a
-     person talking, never like a counter. */
-  function numberWords(n) {
-    if (n < 20) { return ONES[n]; }
-    var ten = Math.floor(n / 10);
-    var one = n % 10;
-    return one === 0 ? TENS[ten] : TENS[ten] + "-" + ONES[one];
-  }
-
-  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
   function mount(flow) {
     var el = {
       navSixteen: document.getElementById("btn-nav-sixteen"),
+      langSwitch: document.getElementById("lang-switch"),
 
       viewIntro: document.getElementById("view-intro"),
       viewQuestion: document.getElementById("view-question"),
@@ -66,7 +41,6 @@
       qStatement: document.getElementById("q-statement"),
       qDots: document.getElementById("q-dots"),
       qFeedback: document.getElementById("q-feedback"),
-      btnSkip: document.getElementById("btn-skip"),
       btnBack: document.getElementById("btn-back"),
       btnNext: document.getElementById("btn-next"),
 
@@ -134,14 +108,23 @@
     var firstRender = true;
     var focusedView = null;
 
-    var ROOT_TITLE = "Personality";
+    /* Same format as the generator's titleFor and rootTitle, so a client-side
+       visit to /infj and a fresh load of /infj name the tab identically, in
+       whichever language the page is in. */
+    function rootTitle() { return SG.i18n.t("seo.rootTitle"); }
 
-    /* Same format as the generator's titleFor, so a client-side visit to /infj
-       and a fresh load of /infj name the tab identically. */
     function titleForCode(code) {
-      var t = SG.types.byCode[code];
-      return t ? t.name + " (" + code + ")" : ROOT_TITLE;
+      var t = SG.i18n.type(code);
+      return t ? SG.i18n.format("seo.title", { name: t.name, code: code }) : rootTitle();
     }
+
+    /* Every in-app address carries the current locale, because the locale is
+       the first path segment and js/i18n.js reads the address to decide what
+       language a page is in. Passing a bare "/enfj" while reading Chinese
+       would put an English URL over Chinese content. */
+    function urlFor(rest) { return SG.i18n.pathFor(SG.i18n.current, rest); }
+
+    function typeUrl(code) { return urlFor("/" + code.toLowerCase()); }
 
     /* file:// has an opaque origin, so the History API throws there. The site
        must still open by double-clicking index.html, so every call is wrapped
@@ -167,42 +150,101 @@
     /* The generator ships these sixteen cards in the static HTML so a crawler
        sees them. Clear them before rebuilding, or every card would appear
        twice. Rebuilding identical anchors is what attaches the listeners. */
-    el.galleryGrid.innerHTML = "";
-    Object.keys(SG.types.byCode).sort().forEach(function (code) {
-      var t = SG.types.byCode[code];
-      var li = document.createElement("li");
-      var a = document.createElement("a");
-      a.className = "gallery-card";
-      a.href = "/" + code.toLowerCase();
+    function buildGallery() {
+      el.galleryGrid.innerHTML = "";
+      Object.keys(SG.types.byCode).sort().forEach(function (code) {
+        var t = SG.i18n.type(code);
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.className = "gallery-card";
+        a.href = typeUrl(code);
 
-      var codeEl = document.createElement("span");
-      codeEl.className = "gallery-code";
-      codeEl.textContent = code;
+        var codeEl = document.createElement("span");
+        codeEl.className = "gallery-code";
+        codeEl.textContent = code;
 
-      var nameEl = document.createElement("span");
-      nameEl.className = "gallery-name";
-      nameEl.textContent = t.name;
+        var nameEl = document.createElement("span");
+        nameEl.className = "gallery-name";
+        nameEl.textContent = t.name;
 
-      var lineEl = document.createElement("span");
-      lineEl.className = "gallery-line";
-      lineEl.textContent = t.line;
+        var lineEl = document.createElement("span");
+        lineEl.className = "gallery-line";
+        lineEl.textContent = t.line;
 
-      a.appendChild(codeEl);
-      a.appendChild(nameEl);
-      a.appendChild(lineEl);
-      a.addEventListener("click", function (e) {
-        /* Never swallow a modified click: those mean "open it properly". */
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
-        e.preventDefault();
-        nav = "type";
-        navCode = code;
-        setUrl("/" + code.toLowerCase(), { view: "type", code: code }, false, titleForCode(code));
-        render();
+        a.appendChild(codeEl);
+        a.appendChild(nameEl);
+        a.appendChild(lineEl);
+        a.addEventListener("click", function (e) {
+          /* Never swallow a modified click: those mean "open it properly". */
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
+          e.preventDefault();
+          nav = "type";
+          navCode = code;
+          setUrl(typeUrl(code), { view: "type", code: code }, false, titleForCode(code));
+          render();
+        });
+
+        li.appendChild(a);
+        el.galleryGrid.appendChild(li);
       });
+    }
+    buildGallery();
 
-      li.appendChild(a);
-      el.galleryGrid.appendChild(li);
-    });
+    /* ---- the language switcher ---- */
+
+    /* Real anchors, filled here and by the deploy generator from the same
+       SG.i18n data, exactly as the gallery grid is: a crawler needs the links
+       without running any JavaScript, and a plain click is still handled in
+       place so a finished result survives a language change.
+
+       Only locales SG.i18n calls complete are offered, so a locale still
+       being written is reachable by typing its address but is never handed to
+       a reader from a finished page. With one complete locale there is
+       nothing to switch between and the whole control stays hidden. */
+    function buildLangSwitch() {
+      el.langSwitch.innerHTML = "";
+      var offered = SG.i18n.completed();
+      el.langSwitch.hidden = offered.length < 2;
+      if (el.langSwitch.hidden) { return; }
+      var rest = SG.i18n.pathWithoutLocale(
+        typeof location === "undefined" ? "/" : location.pathname
+      );
+      offered.forEach(function (loc) {
+        var a = document.createElement("a");
+        a.className = "lang-link";
+        a.href = SG.i18n.pathFor(loc, rest);
+        a.hreflang = SG.i18n.HTML_LANG[loc];
+        a.lang = SG.i18n.HTML_LANG[loc];
+        a.textContent = SG.i18n.ENDONYM[loc];
+        if (loc === SG.i18n.current) { a.setAttribute("aria-current", "true"); }
+        a.addEventListener("click", function (e) {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
+          e.preventDefault();
+          switchLocale(loc);
+        });
+        el.langSwitch.appendChild(a);
+      });
+    }
+
+    /* Switching rewrites the page in place rather than reloading it, so a
+       finished result survives the change. The address has to move with it:
+       the locale lives in the first path segment and a reload of the old
+       address would hand back the old language. */
+    function switchLocale(loc) {
+      var rest = SG.i18n.pathWithoutLocale(
+        typeof location === "undefined" ? "/" : location.pathname
+      );
+      SG.i18n.apply(loc);
+      buildGallery();
+      var state = navCode ? { view: "type", code: navCode } : { view: "flow" };
+      var title = navCode ? titleForCode(navCode) : rootTitle();
+      /* pushState, not replace. Choosing a language is a navigation the
+         reader made on purpose, and Back should undo it and hand them the
+         language they came from. The popstate handler re-reads the locale out
+         of the address for exactly that step. */
+      setUrl(SG.i18n.pathFor(loc, rest), state, false, title);
+      render();
+    }
 
     /* ---- per-view rendering ---- */
 
@@ -211,8 +253,8 @@
     /* One real radio per value, wrapped in its own label. Built here rather
        than written into index.html so the generator's page contract stays
        about the type view, and so the values and their labels cannot drift
-       apart. FEEDBACK is the accessible name of each dot, the same string the
-       old slider put in aria-valuetext. */
+       apart. Each carries the feedback string as its accessible name, which
+       is the same string the old slider put in aria-valuetext. */
     var dotInputs = [];
     for (var v = 1; v <= 7; v += 1) {
       (function (value) {
@@ -227,9 +269,13 @@
         var mark = document.createElement("span");
         mark.className = "dot-mark";
 
+        /* data-i18n rather than a string set once: SG.i18n.applyTo rewrites
+           it on a language change, so the accessible name of each dot never
+           lags the language on screen. */
         var name = document.createElement("span");
         name.className = "visually-hidden";
-        name.textContent = FEEDBACK[value - 1];
+        name.setAttribute("data-i18n", "feedback." + value);
+        name.textContent = SG.i18n.t("feedback." + value);
 
         /* Choosing a dot only ever updates the reading. It never commits:
            the reader presses Next (or Enter) when the choice is the one they
@@ -254,7 +300,7 @@
     }
 
     function showFeedback(value) {
-      el.qFeedback.textContent = value === null ? "" : FEEDBACK[value - 1];
+      el.qFeedback.textContent = value === null ? "" : SG.i18n.t("feedback." + value);
     }
 
     function setValue(value) {
@@ -281,8 +327,7 @@
       var item = state.item;
       if (!item) { return; }
       var remaining = state.total - state.index;
-      el.qProgress.textContent =
-        cap(numberWords(state.index)) + " down, " + numberWords(remaining) + " to go";
+      el.qProgress.textContent = SG.i18n.progress(state.index, remaining);
       el.qProgressFill.style.width =
         (state.total ? (state.index / state.total) * 100 : 0) + "%";
       el.qStatement.textContent = item[item.show];
@@ -290,18 +335,24 @@
          on the way back, which is what puts that dot back under the reader. */
       setValue(pendingValue);
       el.btnBack.hidden = !flow.canBack();
+      /* The word, not the button, is what changes on the last question. One
+         id and one listener serve the whole run, and the reader still has to
+         press before anything is recorded. A tiebreak run is its own queue,
+         so its last question says the same thing. */
+      el.btnNext.textContent =
+        SG.i18n.t(state.index === state.total - 1 ? "question.finish" : "question.next");
     }
 
     function renderReveal() {
       var result = flow.result();
       if (!result) { return; }
-      var t = SG.types.byCode[result.code];
+      var t = SG.i18n.type(result.code);
       el.revealCode.textContent = result.code;
       el.revealName.textContent = t.name;
       el.revealLine.textContent = t.line;
 
       if (result.closeAxis) {
-        var secondT = SG.types.byCode[result.secondCode];
+        var secondT = SG.i18n.type(result.secondCode);
         var axis = result.axes[result.closeAxis];
         /* Peach is the user's own letter. est measures distance toward pole
            1, so est only IS the user's share when letterIndex is 1; when
@@ -322,12 +373,12 @@
     }
 
     function renderTypeContent(code) {
-      var t = SG.types.byCode[code];
+      var t = SG.i18n.type(code);
       el.typeCode.textContent = code;
       el.typeName.textContent = t.name;
       el.typeOpening.textContent = t.opening;
-      el.typeBest.textContent = "You are at your best " + t.best;
-      el.typeUndone.textContent = "You come undone " + t.undone;
+      el.typeBest.textContent = SG.i18n.format("type.best", { clause: t.best });
+      el.typeUndone.textContent = SG.i18n.format("type.undone", { clause: t.undone });
 
       el.typeChips.innerHTML = "";
       t.chips.forEach(function (chip) {
@@ -348,7 +399,7 @@
          the gallery does, or a client-side visit to a second type would
          append its sections underneath the first type's. */
       el.typeSections.innerHTML = "";
-      SG.types.SECTIONS.forEach(function (section) {
+      SG.i18n.sections().forEach(function (section) {
         var wrap = document.createElement("section");
         wrap.className = "type-section";
 
@@ -386,7 +437,7 @@
       el.btnRestart.hidden = false;
       /* The result now has an address worth sending. replaceState, not push,
          so Back does not walk the reveal again. */
-      setUrl("/" + result.code.toLowerCase(), { view: "result", code: result.code }, true,
+      setUrl(typeUrl(result.code), { view: "result", code: result.code }, true,
         titleForCode(result.code));
       if (SG.share && SG.share.setResult) { SG.share.setResult(result); }
     }
@@ -407,6 +458,7 @@
 
     function render() {
       activeView = computeActiveView();
+      buildLangSwitch();
 
       VIEWS.forEach(function (v) {
         SECTION_BY_VIEW[v].hidden = (v !== activeView);
@@ -451,12 +503,6 @@
       advance();
     });
 
-    el.btnSkip.addEventListener("click", function () {
-      pendingValue = null;
-      flow.skip();
-      render();
-    });
-
     el.btnBack.addEventListener("click", function () {
       /* back() hands over a pole-space value and only then is the queue
          standing on the earlier item, so the item to un-flip against is the
@@ -487,7 +533,7 @@
       /* The result's URL no longer describes what is on screen, and a reload
          would hand back that type page instead of the test. replaceState, not
          push, so Back does not walk into the result they just discarded. */
-      setUrl("/", { view: "flow" }, true, ROOT_TITLE);
+      setUrl(urlFor("/"), { view: "flow" }, true, rootTitle());
       render();
     });
 
@@ -508,7 +554,7 @@
          of its own, so only then is the address bar wrong. Mid-test or on a
          result, leave it alone: renderType owns the result's URL. */
       if (flow.state().view === "intro") {
-        setUrl("/", { view: "flow" }, true, ROOT_TITLE);
+        setUrl(urlFor("/"), { view: "flow" }, true, rootTitle());
       }
       render();
     });
@@ -518,7 +564,7 @@
       navCode = null;
       pendingValue = null;
       /* pushState, so Back returns to the type page they came from. */
-      setUrl("/", { view: "flow" }, false, ROOT_TITLE);
+      setUrl(urlFor("/"), { view: "flow" }, false, rootTitle());
       flow.start();
       render();
     });
@@ -528,6 +574,13 @@
        entry this page was loaded on. */
     window.addEventListener("popstate", function (e) {
       var s = e.state;
+      /* Stepping back across a language change lands on an address whose
+         first segment names a different locale, so the language is re-read
+         from the address before anything is painted. */
+      if (SG.i18n.detect(location.pathname) !== SG.i18n.current) {
+        SG.i18n.apply(SG.i18n.detect(location.pathname));
+        buildGallery();
+      }
       if (s && s.view === "type") {
         nav = "type";
         navCode = s.code;
@@ -539,11 +592,11 @@
       } else if (s && s.view === "flow") {
         nav = null;
         navCode = null;
-        document.title = ROOT_TITLE;
+        document.title = rootTitle();
       } else {
         nav = INITIAL_NAV;
         navCode = INITIAL_CODE;
-        document.title = INITIAL_NAV === "type" ? titleForCode(INITIAL_CODE) : ROOT_TITLE;
+        document.title = INITIAL_NAV === "type" ? titleForCode(INITIAL_CODE) : rootTitle();
       }
       render();
     });
