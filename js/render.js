@@ -334,7 +334,7 @@
       el.qProgress.textContent = SG.i18n.progress(state.index, remaining);
       el.qProgressFill.style.width =
         (state.total ? (state.index / state.total) * 100 : 0) + "%";
-      el.qStatement.textContent = item[item.show];
+      el.qStatement.textContent = SG.i18n.statement(item);
       /* pendingValue is null on the way forward and holds the undone answer
          on the way back, which is what puts that dot back under the reader. */
       setValue(pendingValue);
