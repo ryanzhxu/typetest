@@ -22,12 +22,16 @@ test("English is the fallback, so a locale can ship in stages", () => {
 });
 
 test("a type merges the locale's overrides onto the English base", () => {
+  const base = globalThis.SG.types.byCode.ISFJ;
   const hk = I18N.type("ISFJ", "zh-hk");
   assert.strictEqual(hk.name, "避風塘", "the name is the locale's");
-  assert.strictEqual(hk.opening, globalThis.SG.types.byCode.ISFJ.opening,
-    "the prose still falls back to English");
-  assert.strictEqual(globalThis.SG.types.byCode.ISFJ.name, "Safe Harbour",
+  /* The celebrity names are deferred by decision and stay English in every
+     locale, so they are the field that proves the fallback still works. The
+     prose used to serve here and no longer can: it is translated now. */
+  assert.deepStrictEqual(hk.often, base.often, "an unwritten field falls back to English");
+  assert.strictEqual(base.name, "Safe Harbour",
     "merging must not write through to the English base");
+  assert.notStrictEqual(hk.opening, base.opening, "a written field must win over the base");
 });
 
 test("the progress line spells numerals in English and uses digits in Chinese", () => {
