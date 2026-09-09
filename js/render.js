@@ -28,6 +28,7 @@
       navSixteen: document.getElementById("btn-nav-sixteen"),
       langSwitch: document.getElementById("lang-switch"),
       siteFooter: document.querySelector(".site-footer"),
+      localeNotice: document.getElementById("locale-notice"),
 
       viewIntro: document.getElementById("view-intro"),
       viewQuestion: document.getElementById("view-question"),
@@ -468,9 +469,12 @@
       });
       el.navSixteen.hidden = !(activeView === "intro" || activeView === "type");
       /* The question view is the one screen that is centred and thumb-critical,
-         and the only one where the footer's height would push the card off the
-         middle. Nothing else needs the switcher gone. */
+         and the only one where extra chrome would push the card off the
+         middle. The reader has already passed the notice on the way in, and
+         the switcher is not something anyone needs mid-question. */
       el.siteFooter.hidden = (activeView === "question");
+      el.localeNotice.hidden =
+        SG.i18n.isComplete(SG.i18n.current) || activeView === "question";
 
       if (activeView === "question") { renderQuestion(); }
       else if (activeView === "reveal") { renderReveal(); }

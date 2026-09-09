@@ -20,7 +20,7 @@
 
     brand: "Personality",
     nav: { sixteen: "看全部十六型" },
-    lang: { label: "语言", inProgress: "（翻译中）" },
+    lang: { label: "语言", unfinished: "本页翻译尚未完成。" },
 
     intro: {
       eyebrow: "四个字母的性格测试",

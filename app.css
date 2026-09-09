@@ -157,6 +157,19 @@ input:focus-visible,
 
 /* ---------- Layout ---------- */
 
+/* Quiet, not alarming. It states a fact about the page a reader is already on,
+   and it is the same width as the content it sits above. */
+.locale-notice {
+  max-width: var(--max-width);
+  width: 100%;
+  margin: 0 auto var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 /* Below the content, never in the header. A reader uses this once a session,
    and four locale names each carrying a note while it is being written stood
    156px tall at 320px, which pushed the question card off the bottom of the

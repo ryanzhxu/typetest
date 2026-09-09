@@ -5,8 +5,9 @@
   var DEFAULT = "en";
 
   /* The internal ids are also URL path segments, which is why they are short
-     and lower case. English is the site root and has no segment of its own. */
-  var SUPPORTED = ["en", "zh-cn", "zh-tw", "zh-hk"];
+     and lower case. English is the site root and has no segment of its own.
+     The order here is the order the switcher offers them in. */
+  var SUPPORTED = ["en", "zh-cn", "zh-hk", "zh-tw"];
 
   /* What goes in <html lang>, and what a screen reader and a search engine
      actually read. Never a bare zh-Hant: Hong Kong and Taiwan diverge on
@@ -19,13 +20,24 @@
     "zh-hk": "zh-Hant-HK"
   };
 
-  /* Each locale names itself in its own language, because the reader who
-     needs the switcher is by definition not reading the current one. */
-  var ENDONYM = {
+  /* What the switcher calls each locale, and the one rule every authority
+     agrees on: each name is written in its own script. 中国大陆 is in
+     Simplified because that is what it links to; 香港 and 台灣 are in
+     Traditional for the same reason. Writing 台湾 here, in Simplified, would
+     be the single most visible error on the control.
+
+     Region names rather than script names, which is what Apple's own chooser
+     does. Naming the script instead (简体中文 / 繁體中文) forces a region into
+     brackets to tell Hong Kong from Taiwan, and that took the row from 44px
+     to 132px on a 320px phone. Region implies script unambiguously for these
+     three, so nothing is lost. What matters is that all four are the same
+     kind of thing: a list mixing a script name with a region name leaves a
+     reader unable to tell which one means Hong Kong. */
+  var NAME = {
     "en": "English",
-    "zh-cn": "简体中文",
-    "zh-tw": "繁體中文",
-    "zh-hk": "繁體中文（香港）"
+    "zh-cn": "中国大陆",
+    "zh-hk": "香港",
+    "zh-tw": "台灣"
   };
 
   var dicts = {};
@@ -150,12 +162,12 @@
     return SUPPORTED.filter(isOffered);
   }
 
-  /* What the switcher calls a locale: its own name, plus a note in its own
-     language when its copy is not finished. A reader looking for Chinese has
-     to be able to read the warning, so the note is never in English. */
-  function label(locale) {
-    return ENDONYM[locale] + (isComplete(locale) ? "" : t("lang.inProgress", locale));
-  }
+  /* The switcher shows the name and nothing else. An unfinished locale used to
+     carry its note here, and that note is what pushed the control to three
+     rows: the warning now lives on the unfinished page itself, where it is
+     read by the person who actually landed there rather than by everyone who
+     did not. */
+  function label(locale) { return NAME[locale]; }
 
   /* ---- URLs ---- */
 
@@ -238,7 +250,7 @@
     DEFAULT: DEFAULT,
     SUPPORTED: SUPPORTED,
     HTML_LANG: HTML_LANG,
-    ENDONYM: ENDONYM,
+    NAME: NAME,
     register: register,
     t: t,
     format: format,

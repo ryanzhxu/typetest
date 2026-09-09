@@ -22,7 +22,7 @@
 
     brand: "Personality",
     nav: { sixteen: "看全部十六型" },
-    lang: { label: "語言", inProgress: "（翻譯中）" },
+    lang: { label: "語言", unfinished: "這一頁的翻譯還沒完成。" },
 
     intro: {
       eyebrow: "四個字母的性格測驗",

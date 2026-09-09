@@ -186,6 +186,24 @@ for (let i = 0; i < PAIRS.length; i += 2) {
   SIMP.add(PAIRS[i + 1]);
 }
 
+test("every switcher name is written in the script it links to", () => {
+  /* The one rule W3C, CLDR, Wikipedia and Apple all keep, and the most
+     visible error this control can carry: 台湾 in Simplified on the option
+     that leads to a Traditional page.
+
+     Checked against the same pair table as the copy, never a second
+     hand-written list. 台 is deliberately absent from that table: it is a
+     real Traditional character, and 台灣 is the spelling Apple ships. */
+  const forbidden = { "zh-cn": TRAD, "zh-hk": SIMP, "zh-tw": SIMP };
+  CHINESE.forEach((loc) => {
+    Array.from(I18N.NAME[loc]).forEach((ch) => {
+      assert.ok(!forbidden[loc].has(ch),
+        loc + " is named " + I18N.NAME[loc] + ", which uses the wrong-script " + ch);
+    });
+  });
+  assert.ok(/[㐀-䶿一-鿿]/.test(I18N.NAME["zh-cn"]), "a Chinese locale must be named in Chinese");
+});
+
 test("the Traditional locales carry no Simplified character, and the Simplified one no Traditional", () => {
   /* This is the check a glyph converter would pass and a careless hand would
      fail. It is not the check that catches vocabulary, which is below. */

@@ -227,8 +227,8 @@ function galleryItems(locale) {
 
 /* The same anchors js/render.js builds, for every OFFERED locale rather than
    every indexed one. A locale nobody can click to is a locale nobody can
-   review, and the review is what makes it complete. I18N.label marks an
-   unfinished one in its own language.
+   review, and the review is what makes it complete. An unfinished locale is
+   marked by the notice on its own pages, not here.
 
    These links are not an SEO claim. The hreflang set in the head is, and that
    still names only the indexed locales, so an unfinished page stays noindex
@@ -331,6 +331,7 @@ function buildRoot(indexHtml, locale) {
   const items = langSwitchItems(loc, "/");
   if (items) { html = setHidden(html, "lang-switch", false); }
   html = fillById(html, "lang-switch", items);
+  html = setHidden(html, "locale-notice", I18N.isComplete(loc));
   return html;
 }
 
@@ -378,6 +379,7 @@ function buildPage(indexHtml, code, locale) {
   const items = langSwitchItems(loc, rest);
   if (items) { html = setHidden(html, "lang-switch", false); }
   html = fillById(html, "lang-switch", items);
+  html = setHidden(html, "locale-notice", I18N.isComplete(loc));
 
   return html;
 }
