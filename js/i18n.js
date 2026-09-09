@@ -127,6 +127,16 @@
     return out;
   }
 
+  /* The statement a reader sees, in their language. js/items.js keys every
+     item, and a locale dictionary carries one string per id: the shown pole
+     and only that one. The unshown pole is a design record, checked at build
+     time and never rendered, so it stays English in every locale. */
+  function statement(item, locale) {
+    if (!item) { return ""; }
+    var own = lookup(dicts[locale || current], "items." + item.id);
+    return typeof own === "string" ? own : item[item.show];
+  }
+
   function sections(locale) {
     return SG.types.SECTIONS.map(function (s) {
       return { key: s.key, heading: t("sections." + s.key, locale) };
@@ -258,6 +268,7 @@
     numeral: numeral,
     progress: progress,
     type: type,
+    statement: statement,
     sections: sections,
     isComplete: isComplete,
     completed: completed,

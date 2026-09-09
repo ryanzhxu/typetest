@@ -307,31 +307,72 @@ are gone for the same reason.
 
 ### The writing, honestly
 
-| Content | Strings per locale | English words | x3 |
+| Content | Strings per locale | English words | Status |
 |---|---|---|---|
-| Interface, names, one-liners | **81, done** | done | done |
-| Item statements, 36 core + 32 tiebreak | 68 | 410 | 204 |
-| Type opening, best, undone | 48 | 1,143 | 144 |
-| Chips, 16 x 5 | 80 | 292 | 240 |
-| **The five long sections, 16 x 5 x 3** | **240** | **8,587** | **720** |
-| Celebrity names, 16 x 5 | 80 | 165 | 240, deferred |
+| Interface, names, one-liners | 81 | | **done, wave 1** |
+| Item statements, 36 core + 32 tiebreak | 68 | 410 | **done** |
+| INFJ, the voice sample, end to end | 23 | 1,135 | **done** |
+| The other fifteen types | **345** | **9,297** | **wave 2** |
+| Celebrity names, 16 x 5 | 80 | 165 | deferred |
 
-**436 strings per locale, 1,308 in all, roughly 31,000 words.**
+**345 strings per locale left, 1,035 in all, roughly 28,000 words.**
+
+Everything before that line is written in all three locales. The test itself
+now runs end to end in Chinese: the thirty-six questions, the seven-point
+scale, the progress line, the reveal and the type name. `/zh-hk/infj` is a
+complete Chinese page with no English on it but the five celebrity names.
 
 An earlier version of this file said 584 per locale. That was wrong: it counted
 both poles of every item, and **only one pole is ever rendered**. `js/render.js`
-draws `item[item.show]` and nothing else; the other pole exists so each item's
-opposite is checked at design time, and it stays English. 68 statements, not
-136.
+draws `SG.i18n.statement(item)`, which resolves one string per item id; the
+other pole exists so each item's opposite is checked at design time, and it
+stays English. 68 statements, not 136.
+
+### How an item is translated
+
+`js/items.js` gives every item a **stable id** (`EI1`, `JP-t8`), and a locale
+dictionary keys its statement on that id. Position would not do: renumbering
+the file would silently re-point every translated statement at a different
+question, and nothing downstream would notice.
+
+### What the dictionaries are, and are not
+
+`types.*` and `items.*` are **overlays onto an English base**, not a mirror of
+the English dictionary. `js/types.js` and `js/items.js` hold the English copy,
+and a locale carries only the fields it has words for yet. Every other key is
+interface copy with no base to fall back to, so it must exist in full in every
+locale, and `test/locales.test.js` enforces those two rules differently:
+
+- interface keys: exact set equality against English;
+- overlay keys: the type and the field must be real, and an array field must
+  keep its length. `types.INFJ.openning` would otherwise never be read, and the
+  English would show through looking merely untranslated.
+
+`locale-en.js` restates the English items and the English names, because every
+locale carries the same keys and English is the fallback they resolve against.
+That is only safe while the two cannot disagree, and one test is what makes it
+so.
+
+### A frame that only a real clause could have caught
+
+`type.best` and `type.undone` are templates, and the Chinese versions first
+shipped ending in 的時候 while every clause opened with 當 or 你. The sentence
+then said "the time when" twice, or "you" twice. It read fine in the abstract
+and wrong the moment a real clause existed, which is exactly what writing one
+type end to end is for. Both frames were rewritten and the clauses now open
+with neither word.
 
 Note that the five long sections are **82% of the words**. They are also where
 the voice lives, which is why they go last.
 
-Order, decided 2026-09-08: `js/items.js` becomes a locale dictionary, then the
-68 statements in all three locales, then one type end to end. After that step
-the test itself runs fully in Chinese, which is the actual product, and one
-type page is in front of a reviewer before the other fifteen are written
-against it.
+Order, decided 2026-09-08 and now done through step three: `js/items.js`
+becomes a locale dictionary, then the 68 statements in all three locales, then
+one type end to end.
+
+**The next step is the gate, not more writing.** INFJ exists in all three
+locales precisely so its register can be read before 28,000 words are written
+against it. Send `/zh-hk/infj`, `/zh-tw/infj` and `/zh-cn/infj` to a reader per
+region, with the questions in "Specific things to ask a native reader" above.
 
 ### The structural work still outstanding
 
@@ -360,8 +401,10 @@ data-i18n treatment and generate one per locale, or accept it and say so.
 - Every `data-i18n` key exists in every dictionary, asserted in CI. **Done.**
 - `test/locales.test.js` passes, with all three Chinese directions guarding
   *against* Cantonese. **Done.**
-- `/zh-hk/enfj` serves complete Chinese content in the raw HTML with no
-  JavaScript run. **Chrome and names done; prose is wave 2.**
+- A locale page serves complete Chinese content in the raw HTML with no
+  JavaScript run. **Done for `/zh-hk/infj` and its two siblings; the other
+  fifteen types are wave 2.**
+- The test itself runs end to end in Chinese. **Done.**
 - `hreflang` pairs are reciprocal and every canonical is correct. **Done**,
   and verified by flipping `meta.complete` on and back off.
 - Both locales switch without a page reload, and a finished result survives

@@ -10,6 +10,7 @@ require("../js/locale-en.js");
 require("../js/locale-zh-cn.js");
 require("../js/locale-zh-tw.js");
 require("../js/locale-zh-hk.js");
+require("../js/items.js");
 require("../js/types.js");
 const I18N = globalThis.SG.i18n;
 
@@ -32,17 +33,46 @@ function keysOf(locale) { return stringsOf(locale).map((pair) => pair[0]).sort()
 
 /* ---- parity ---- */
 
-test("every locale carries exactly the keys English carries", () => {
+/* types.* and items.* are overlays onto an English base, not a mirror of the
+   English dictionary: js/types.js and js/items.js hold the English copy, and a
+   locale carries only the fields it has words for yet. Every other key is
+   interface copy that has no base to fall back to, so it must exist in full
+   in every locale. */
+function isOverlay(key) { return /^(types|items)\./.test(key); }
+
+test("every locale carries exactly the interface keys English carries", () => {
   /* There is no compiler here to catch a missing key. A locale short of one
      falls back to English and looks merely untranslated; a locale carrying an
      extra one is a typo nothing will ever read. */
-  const want = keysOf("en");
+  const want = keysOf("en").filter((k) => !isOverlay(k));
   CHINESE.forEach((loc) => {
-    const got = keysOf(loc);
+    const got = keysOf(loc).filter((k) => !isOverlay(k));
     const missing = want.filter((k) => got.indexOf(k) === -1);
     const extra = got.filter((k) => want.indexOf(k) === -1);
     assert.deepStrictEqual(missing, [], loc + " is missing keys");
     assert.deepStrictEqual(extra, [], loc + " carries keys English does not");
+  });
+});
+
+test("a type overlay only ever names a real type and a real field of it", () => {
+  /* The overlay is where a typo hides: types.INFJ.openning would simply never
+     be read, and the English would show through looking merely untranslated. */
+  const byCode = globalThis.SG.types.byCode;
+  I18N.SUPPORTED.forEach((loc) => {
+    const types = I18N.dict(loc).types || {};
+    Object.keys(types).forEach((code) => {
+      assert.ok(byCode[code], loc + " overlays " + code + ", which is not a type");
+      Object.keys(types[code]).forEach((field) => {
+        assert.ok(Object.prototype.hasOwnProperty.call(byCode[code], field),
+          loc + " overlays " + code + "." + field + ", which is not a field of a type");
+        assert.strictEqual(Array.isArray(types[code][field]), Array.isArray(byCode[code][field]),
+          loc + " " + code + "." + field + " changed shape");
+        if (Array.isArray(types[code][field])) {
+          assert.strictEqual(types[code][field].length, byCode[code][field].length,
+            loc + " " + code + "." + field + " has the wrong number of entries");
+        }
+      });
+    });
   });
 });
 
@@ -82,6 +112,39 @@ test("every placeholder English uses survives into every locale", () => {
       }
       assert.deepStrictEqual((text.match(/\{\w+\}/g) || []).sort(), wanted[key],
         loc + " changed the placeholders at " + key);
+    });
+  });
+});
+
+test("the English dictionary never drifts from the English source", () => {
+  /* locale-en.js restates copy that lives in js/items.js and js/types.js,
+     because every locale carries the same keys and English is the fallback
+     those keys resolve against. Restating it is only safe while the two
+     cannot disagree, and nothing but this test makes that true. */
+  const items = globalThis.SG.items.core.concat(globalThis.SG.items.tiebreak);
+  items.forEach((item) => {
+    assert.strictEqual(I18N.t("items." + item.id, "en"), item[item.show],
+      "locale-en.js and js/items.js disagree about " + item.id);
+  });
+  Object.keys(globalThis.SG.types.byCode).forEach((code) => {
+    const base = globalThis.SG.types.byCode[code];
+    const over = I18N.type(code, "en");
+    assert.strictEqual(over.name, base.name, "locale-en.js renamed " + code);
+    assert.strictEqual(over.line, base.line, "locale-en.js rewrote " + code + "'s line");
+  });
+});
+
+test("every item has a stable id, and a locale keys its statements on it", () => {
+  /* Position would not do: renumbering js/items.js would silently re-point
+     every translated statement at a different question. */
+  const items = globalThis.SG.items.core.concat(globalThis.SG.items.tiebreak);
+  const ids = items.map((i) => i.id);
+  assert.strictEqual(ids.filter(Boolean).length, items.length, "an item has no id");
+  assert.strictEqual(new Set(ids).size, items.length, "two items share an id");
+  I18N.SUPPORTED.forEach((loc) => {
+    const dict = I18N.dict(loc).items || {};
+    Object.keys(dict).forEach((id) => {
+      assert.ok(ids.indexOf(id) !== -1, loc + " translates " + id + ", which is not an item");
     });
   });
 });
@@ -289,9 +352,12 @@ test("a locale is only complete once nothing in it still falls back to English",
       t.chips.forEach((chip) => assert.ok(CJK.test(chip),
         loc + " is marked complete but a " + code + " chip is still English"));
     });
-    globalThis.SG.items.core.concat(globalThis.SG.items.tiebreak).forEach((item, i) => {
-      assert.ok(CJK.test(item[item.show]),
-        loc + " is marked complete but item " + i + " is still English");
+    globalThis.SG.items.core.concat(globalThis.SG.items.tiebreak).forEach((item) => {
+      /* Through the runtime, not off the English base. Reading item[item.show]
+         here asked whether js/items.js was in Chinese, which it never will be,
+         so no locale could ever have been marked complete. */
+      assert.ok(CJK.test(I18N.statement(item, loc)),
+        loc + " is marked complete but item " + item.id + " is still English");
     });
   });
 });
