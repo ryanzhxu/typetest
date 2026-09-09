@@ -143,48 +143,44 @@ test("the question card sits in the middle of the screen, not under the header",
   }
 });
 
-/* The switcher is hidden while only English is complete, so nothing above
-   would ever measure it. The day someone flips meta.complete on a locale file
-   it appears on every page at once, and at 320px four locale names beside the
-   brand and the nav link do not fit: the header squeezed each name into a
-   one-character-wide column and still ran 15px past the viewport.
+/* The switcher lives in the footer, and every offered locale appears in it
+   whether or not its copy is finished. It used to sit in the header, where
+   four locale names each carrying a note stood 156px tall at 320px, pushed the
+   question card off the bottom of the screen and made the page scroll.
 
-   Build the finished state here rather than waiting for that day. */
+   Measure the real control rather than a synthetic one: it renders on every
+   view except the question. */
 SIZES.forEach(function (size) {
   const w = size[0];
   const h = size[1];
-  test("the header still fits at " + w + "px with every locale offered", { skip: !chromium }, async () => {
+  test("the language switcher fits at " + w + "px with every locale offered", { skip: !chromium }, async () => {
     const browser = await chromium.launch();
     try {
       const page = await browser.newPage({ viewport: { width: w, height: h } });
       await page.goto(PAGE_URL);
 
-      const overflow = await page.evaluate(() => {
+      const m = await page.evaluate(() => {
         const I18N = window.SG.i18n;
         const nav = document.getElementById("lang-switch");
-        nav.innerHTML = "";
-        nav.hidden = false;
-        I18N.SUPPORTED.forEach((loc) => {
-          const a = document.createElement("a");
-          a.className = "lang-link";
-          a.href = I18N.pathFor(loc, "/");
-          a.textContent = I18N.ENDONYM[loc];
-          if (loc === I18N.current) { a.setAttribute("aria-current", "true"); }
-          nav.appendChild(a);
-        });
         const de = document.documentElement;
-        const names = Array.prototype.map.call(nav.querySelectorAll("a"), (a) => {
-          const r = a.getBoundingClientRect();
-          return { text: a.textContent, w: Math.round(r.width), h: Math.round(r.height) };
-        });
-        return { over: de.scrollWidth - de.clientWidth, names: names };
+        return {
+          offered: I18N.offered().length,
+          shown: nav.querySelectorAll("a").length,
+          hidden: nav.hidden,
+          over: de.scrollWidth - de.clientWidth,
+          names: Array.prototype.map.call(nav.querySelectorAll("a"), (a) => {
+            const r = a.getBoundingClientRect();
+            return { text: a.textContent, w: Math.round(r.width), h: Math.round(r.height) };
+          })
+        };
       });
 
-      assert.strictEqual(overflow.over, 0,
-        "the header overflows by " + overflow.over + "px with four locales offered");
+      assert.strictEqual(m.hidden, false, "the switcher must show on the intro");
+      assert.strictEqual(m.shown, m.offered, "every offered locale must appear");
+      assert.strictEqual(m.over, 0, "the page overflows by " + m.over + "px");
       /* A name taller than it is wide means the column collapsed and it is
          wrapping one character per line, which fits and is unreadable. */
-      overflow.names.forEach((n) => {
+      m.names.forEach((n) => {
         assert.ok(n.w >= n.h, "the locale name " + n.text + " wrapped into a " +
           n.w + "x" + n.h + " column");
       });
@@ -192,4 +188,18 @@ SIZES.forEach(function (size) {
       await browser.close();
     }
   });
+});
+
+test("the switcher is gone from the question view, where the card has to stay centred",
+  { skip: !chromium }, async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 320, height: 568 } });
+    await page.goto(PAGE_URL);
+    await page.click("#btn-start");
+    assert.strictEqual(await page.locator(".site-footer").isHidden(), true,
+      "the footer must not eat the question view's vertical space");
+  } finally {
+    await browser.close();
+  }
 });

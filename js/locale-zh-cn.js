@@ -16,11 +16,11 @@
      NOT YET READ BY A NATIVE MAINLAND READER. meta.complete stays false until
      that happens and until the type prose is written. */
   SG.i18n.register("zh-cn", {
-    meta: { complete: false },
+    meta: { complete: false, offered: true },
 
     brand: "Personality",
     nav: { sixteen: "看全部十六型" },
-    lang: { label: "语言" },
+    lang: { label: "语言", inProgress: "（翻译中）" },
 
     intro: {
       eyebrow: "四个字母的性格测试",
