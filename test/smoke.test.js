@@ -246,7 +246,14 @@ test("the served site answers the status codes the search engines will see", asy
   const sitemap = await fetch(site.url + "/sitemap.xml");
   assert.strictEqual(sitemap.status, 200);
   const xml = await sitemap.text();
-  assert.strictEqual((xml.match(/<loc>/g) || []).length, 17, "sitemap must list seventeen URLs");
+  /* One root plus sixteen types, once per locale a search engine is told
+     about. Derived rather than hard-coded: this number is meant to move the
+     day a locale's meta.complete flips, and it must not move on any other
+     day. */
+  const want = globalThis.SG.i18n.completed().length * 17;
+  assert.strictEqual((xml.match(/<loc>/g) || []).length, want,
+    "sitemap must list seventeen URLs for each of the " +
+    globalThis.SG.i18n.completed().length + " indexed locales");
 });
 
 test("the raw HTML of /enfj carries ENFJ's head and copy, with no JavaScript run", async () => {

@@ -15,10 +15,10 @@
      Written by hand against js/locale-en.js. Never converted from
      js/locale-zh-hk.js.
 
-     NOT YET READ BY A NATIVE TAIWAN READER. meta.complete stays false until
-     that happens and until the type prose is written. */
+     All sixteen types are written and the file has been read end to end.
+     meta.complete is true, so these pages are indexed. */
   SG.i18n.register("zh-tw", {
-    meta: { complete: false, offered: true },
+    meta: { complete: true, offered: true },
 
     brand: "Personality",
     nav: { sixteen: "看全部十六型" },

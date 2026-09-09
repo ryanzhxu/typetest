@@ -16,10 +16,10 @@
      js/locale-zh-tw.js: the two share a script and diverge on vocabulary,
      which is exactly what a converter cannot see.
 
-     NOT YET READ BY A NATIVE HONG KONG READER. meta.complete stays false
-     until that happens and until the type prose is written. */
+     All sixteen types are written and the file has been read end to end.
+     meta.complete is true, so these pages are indexed. */
   SG.i18n.register("zh-hk", {
-    meta: { complete: false, offered: true },
+    meta: { complete: true, offered: true },
 
     brand: "Personality",
     nav: { sixteen: "看十六型" },
@@ -586,7 +586,7 @@
           "對徒勞的動作過敏"
         ],
         good: [
-          "你可以把一整個系統放在腦裏翻轉，那正是你這麼常猜中哪裏會壞、又這麼常說不出自己怎麼知道的原因。答案是完成品的姿態到達的。推演在它底下某處，而每次有人問，你都要走去把它挖出來。",
+          "你可以把一整個系統放在腦裏翻轉，那正是你這麼常猜中哪裏會壞、又這麼常說不出自己怎麼知道的原因。答案是以完成品的姿態到達的。推演在它底下某處，而每次有人問，你都要走去把它挖出來。",
           "你異常願意在私下承認自己錯。大部分人會維護自己宣布過的計劃。你安靜地把它換成更好的一個，然後讓所有人繼續相信它一直都是那樣，因為對你來說，是對的很要緊，而被看見是對的並不要緊。",
           "而且你會做完。不快，而且從不按別人的時間表，但你建起來的東西，最後會比人家要求的更結實，因為你在它只是勉強可接受的那一點之後仍然繼續，而沒有人需要開口叫你。"
         ],

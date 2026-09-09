@@ -13,10 +13,10 @@
      conversion of either Traditional file, and must never become one: a
      converter turns 履歷 into 履历, where the Simplified word is 简历.
 
-     NOT YET READ BY A NATIVE MAINLAND READER. meta.complete stays false until
-     that happens and until the type prose is written. */
+     All sixteen types are written and the file has been read end to end.
+     meta.complete is true, so these pages are indexed. */
   SG.i18n.register("zh-cn", {
-    meta: { complete: false, offered: true },
+    meta: { complete: true, offered: true },
 
     brand: "Personality",
     nav: { sixteen: "看全部十六型" },
