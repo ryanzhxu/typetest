@@ -168,9 +168,18 @@ SIZES.forEach(function (size) {
           shown: nav.querySelectorAll("a").length,
           hidden: nav.hidden,
           over: de.scrollWidth - de.clientWidth,
+          rows: new Set(Array.prototype.map.call(nav.querySelectorAll("a"),
+            (a) => Math.round(a.getBoundingClientRect().top))).size,
           names: Array.prototype.map.call(nav.querySelectorAll("a"), (a) => {
             const r = a.getBoundingClientRect();
-            return { text: a.textContent, w: Math.round(r.width), h: Math.round(r.height) };
+            const line = parseFloat(getComputedStyle(a).fontSize) * 1.6;
+            /* The link has a 44px min-height, so its box says nothing about
+               wrapping. Measure the text itself with a range. */
+            const range = document.createRange();
+            range.selectNodeContents(a);
+            const boxes = range.getClientRects();
+            return { text: a.textContent, w: Math.round(r.width), h: Math.round(r.height),
+                     lines: boxes.length };
           })
         };
       });
@@ -178,11 +187,19 @@ SIZES.forEach(function (size) {
       assert.strictEqual(m.hidden, false, "the switcher must show on the intro");
       assert.strictEqual(m.shown, m.offered, "every offered locale must appear");
       assert.strictEqual(m.over, 0, "the page overflows by " + m.over + "px");
-      /* A name taller than it is wide means the column collapsed and it is
-         wrapping one character per line, which fits and is unreadable. */
+
+      /* One row, even at 320px. That is the whole point of naming the locales
+         by region: 繁體中文（香港） needed three rows and 香港 needs one.
+
+         Rows, not width against height. A two-character name is 35px wide in a
+         44px-tall target, so "wider than it is tall" fires on a name that is
+         perfectly fine. */
+      assert.strictEqual(m.rows, 1,
+        "the switcher takes " + m.rows + " rows: " + m.names.map((n) => n.text).join(" "));
+      /* A name wrapping inside its own link is taller than one line of it. */
       m.names.forEach((n) => {
-        assert.ok(n.w >= n.h, "the locale name " + n.text + " wrapped into a " +
-          n.w + "x" + n.h + " column");
+        assert.ok(n.lines === 1,
+          "the locale name " + n.text + " wrapped onto " + n.lines + " lines");
       });
     } finally {
       await browser.close();

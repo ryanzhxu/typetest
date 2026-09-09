@@ -946,14 +946,23 @@ test("an unfinished locale is offered to a reader, labelled, and to nobody else"
     assert.deepStrictEqual(links.map((l) => l.href), I18N.offered().map((l) => I18N.pathFor(l, "/")),
       "the switcher must offer every offered locale, in order");
 
-    /* Labelled in its own language: a reader looking for Chinese has to be
-       able to read the warning, so it is never in English. */
+    /* A name and nothing else. The unfinished note lives on the page it
+       describes, not beside every name in the control. */
     I18N.offered().forEach((loc, i) => {
-      assert.strictEqual(links[i].text, I18N.label(loc), loc + " is mislabelled");
-      const marked = links[i].text !== I18N.ENDONYM[loc];
-      assert.strictEqual(marked, !I18N.isComplete(loc),
-        loc + (I18N.isComplete(loc) ? " must not be marked unfinished" : " must be marked unfinished"));
+      assert.strictEqual(links[i].text, I18N.NAME[loc], loc + " is mislabelled");
     });
+
+    /* And that notice is on the unfinished page, in that page's language. */
+    const raw = await (await fetch(site.url + "/")).text();
+    assert.ok(/<p id="locale-notice"[^>]*\shidden[^>]*>/.test(raw),
+      "English is complete, so its pages must carry no notice");
+    for (const loc of unfinished) {
+      const page = await (await fetch(site.url + I18N.pathFor(loc, "/isfj"))).text();
+      assert.ok(page.includes(">" + I18N.t("lang.unfinished", loc) + "</p>"),
+        loc + " does not say that it is unfinished");
+      assert.ok(!/<p id="locale-notice"[^>]*\shidden[^>]*>/.test(page),
+        loc + " hides the notice it needs to show");
+    }
 
     /* Clicking one actually gets there, and it is still noindex when it does. */
     const target = unfinished[0];

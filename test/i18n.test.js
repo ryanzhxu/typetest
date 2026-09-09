@@ -102,10 +102,26 @@ test("every supported locale has a BCP-47 tag and names itself in its own langua
     assert.ok(tag, loc + " has no lang tag");
     assert.notStrictEqual(tag, "zh-Hant", "zh-Hant alone does not say which Traditional");
     assert.notStrictEqual(tag, "zh", loc + " must name a script or a region");
-    assert.ok(I18N.ENDONYM[loc], loc + " does not name itself");
+    assert.ok(I18N.NAME[loc], loc + " has no name for the switcher");
   });
   assert.strictEqual(new Set(Object.values(I18N.HTML_LANG)).size, I18N.SUPPORTED.length,
     "two locales share a lang tag");
-  assert.strictEqual(new Set(Object.values(I18N.ENDONYM)).size, I18N.SUPPORTED.length,
+  assert.strictEqual(new Set(Object.values(I18N.NAME)).size, I18N.SUPPORTED.length,
     "two locales are offered under the same name");
+});
+
+test("the switcher shows a name and nothing else", () => {
+  /* The unfinished note moved onto the page it describes. Putting it back
+     beside each name takes the control from one row to three at 320px. */
+  I18N.SUPPORTED.forEach((loc) => {
+    assert.strictEqual(I18N.label(loc), I18N.NAME[loc], loc + " carries a suffix");
+  });
+});
+
+test("an unfinished locale has a notice, written in its own language", () => {
+  I18N.SUPPORTED.filter((loc) => !I18N.isComplete(loc)).forEach((loc) => {
+    const notice = I18N.t("lang.unfinished", loc);
+    assert.ok(/[㐀-䶿一-鿿]/.test(notice), loc + " explains itself in English");
+    assert.notStrictEqual(notice, I18N.t("lang.unfinished", "en"), loc + " kept the English notice");
+  });
 });

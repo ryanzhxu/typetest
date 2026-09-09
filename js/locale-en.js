@@ -15,10 +15,10 @@
 
     brand: "Personality",
     nav: { sixteen: "See all sixteen" },
-    /* inProgress is never shown in English, which is always complete, but the
+    /* unfinished is never shown in English, which is always complete, but the
        key has to exist here: this file is the inventory every other locale is
        checked against. */
-    lang: { label: "Language", inProgress: " (in translation)" },
+    lang: { label: "Language", unfinished: "This translation is not finished yet." },
 
     intro: {
       eyebrow: "A four-letter personality test",

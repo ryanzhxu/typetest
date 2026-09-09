@@ -140,9 +140,9 @@ three locales. They currently fall back to the English names.
 locale is being written they have different answers.
 
 **`meta.offered`** asks whether a reader can click to it. It is `true` for all
-three Chinese locales. They appear in the language switcher, labelled in their
-own language with `lang.inProgress` (「（翻譯中）」, 「（翻译中）」), so nobody
-arrives thinking the copy is finished.
+three Chinese locales, so they appear in the language switcher. An unfinished
+locale says so on its own pages, through `lang.unfinished` and the
+`#locale-notice` line at the top of `main`, written in that locale's language.
 
 This was `false` at first, folded into `meta.complete`, and that was wrong: a
 locale nobody can reach is a locale nobody can review, and the review is the
@@ -162,15 +162,47 @@ the head is, and that still names only the complete locales.
 **Flipping `meta.complete` publishes a locale.** `test/locales.test.js` refuses
 to let it be `true` while any type prose or any item is still English.
 
-### Where the switcher lives
+### The switcher: where it lives and what it says
 
-In a `<footer>`, below the content, and hidden on the question view.
+In a `<footer>`, below the content, hidden on the question view, and **one row
+at 320px**.
 
 It started in the header and could not stay there. Four locale names each
 carrying a note stood **156px tall at 320px**, which pushed the question card
 off the bottom of the screen and made the page scroll. The question view is the
 one screen that is deliberately centred and thumb-critical, so the footer is
-hidden there; `test/viewport.test.js` asserts both the fit and the hiding.
+hidden there; `test/viewport.test.js` asserts the single row and the hiding.
+
+**The names are regions, not scripts:** `English  中国大陆  香港  台灣`. This
+follows Apple's own chooser. Naming the script instead (`简体中文`,
+`繁體中文（香港）`) forces a region into brackets to tell Hong Kong from Taiwan,
+and measured at 132px and three rows on a 320px phone against 44px and one row
+for these.
+
+Measured alternatives, all in this footer at 320px:
+
+| pattern | labels | height |
+|---|---|---|
+| Apple, region only | `English 中国大陆 香港 台灣` | **44px, 1 row** |
+| Wikipedia, region + script | `English 大陆简体 香港繁體 臺灣正體` | 88px, 2 rows |
+| CLDR, script + region | `English 简体中文 繁體中文（香港）…` | 132px, 3 rows |
+
+**Every name is written in the script it links to.** 中国大陆 in Simplified,
+香港 and 台灣 in Traditional. This is the one rule W3C, CLDR, Chinese Wikipedia
+and Apple all keep, and `test/locales.test.js` checks the names against the
+same pair table as the copy, never a second hand-written list.
+
+Two traps in that rule. 台 is a **real Traditional character**, so it is
+deliberately absent from the pair table; 台灣 is the spelling Apple ships, and
+臺灣 is the formal alternative. And all four entries must be the same kind of
+thing: a list mixing a script name with a region name leaves a reader unable to
+tell which entry means Hong Kong.
+
+If the labels are ever revisited, Chinese Wikipedia's set (大陆简体 / 香港繁體 /
+臺灣正體) is the other defensible answer, and it carries the script for a
+diaspora reader who wants Simplified but is not in the mainland. It costs one
+extra row. Note 正體 rather than 繁體 for Taiwan: that is Taiwan's own official
+term and worth putting to the native reviewer.
 
 ### The generator
 
@@ -275,22 +307,31 @@ are gone for the same reason.
 
 ### The writing, honestly
 
-| Content | Strings per locale | x3 |
-|---|---|---|
-| Interface, names, one-liners | **81, done** | done |
-| Core items, 36 x 2 poles | 72 | 216 |
-| Tiebreak items, 32 x 2 poles | 64 | 192 |
-| Type opening, best, undone | 48 | 144 |
-| Chips, 16 x 5 | 80 | 240 |
-| **The five long sections, 16 x 5 x 3** | **240** | **720** |
-| Celebrity names, 16 x 5 | 80 | 240, deferred |
+| Content | Strings per locale | English words | x3 |
+|---|---|---|---|
+| Interface, names, one-liners | **81, done** | done | done |
+| Item statements, 36 core + 32 tiebreak | 68 | 410 | 204 |
+| Type opening, best, undone | 48 | 1,143 | 144 |
+| Chips, 16 x 5 | 80 | 292 | 240 |
+| **The five long sections, 16 x 5 x 3** | **240** | **8,587** | **720** |
+| Celebrity names, 16 x 5 | 80 | 165 | 240, deferred |
 
-**584 strings per locale, 1,752 in all, roughly 30,000 words.** This is a
-multi-session writing job, not a one-sitting one. Wave 1 deliberately stopped
-before it so the voice could be approved first.
+**436 strings per locale, 1,308 in all, roughly 31,000 words.**
 
-Suggested order: items first (they are the product), then one type end to end
-in all three locales, get that read, then the other fifteen.
+An earlier version of this file said 584 per locale. That was wrong: it counted
+both poles of every item, and **only one pole is ever rendered**. `js/render.js`
+draws `item[item.show]` and nothing else; the other pole exists so each item's
+opposite is checked at design time, and it stays English. 68 statements, not
+136.
+
+Note that the five long sections are **82% of the words**. They are also where
+the voice lives, which is why they go last.
+
+Order, decided 2026-09-08: `js/items.js` becomes a locale dictionary, then the
+68 statements in all three locales, then one type end to end. After that step
+the test itself runs fully in Chinese, which is the actual product, and one
+type page is in front of a reviewer before the other fifteen are written
+against it.
 
 ### The structural work still outstanding
 
