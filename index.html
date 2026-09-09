@@ -93,10 +93,15 @@
              run, because there is nothing behind it. The primary button reads
              "Next" until the last question, where it reads "See your result":
              js/render.js writes that word, so the label and the queue cannot
-             drift apart. -->
+             drift apart.
+
+             It still carries data-i18n. That is the label before any script has
+             run, and without it a generated Chinese page shipped the English
+             word inside its hidden question view. js/render.js overwrites it on
+             the first question either way. -->
         <div class="question-actions">
           <button type="button" id="btn-back" class="btn btn-secondary" data-i18n="question.back" hidden>Back</button>
-          <button type="button" id="btn-next" class="btn btn-primary" disabled>Next</button>
+          <button type="button" id="btn-next" class="btn btn-primary" data-i18n="question.next" disabled>Next</button>
         </div>
       </div>
     </section>

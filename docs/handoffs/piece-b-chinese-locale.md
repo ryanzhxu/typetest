@@ -307,20 +307,29 @@ are gone for the same reason.
 
 ### The writing, honestly
 
-| Content | Strings per locale | English words | Status |
-|---|---|---|---|
-| Interface, names, one-liners | 81 | | **done, wave 1** |
-| Item statements, 36 core + 32 tiebreak | 68 | 410 | **done** |
-| INFJ, the voice sample, end to end | 23 | 1,135 | **done** |
-| The other fifteen types | **345** | **9,297** | **wave 2** |
-| Celebrity names, 16 x 5 | 80 | 165 | deferred |
+| Content | Strings per locale | Status |
+|---|---|---|
+| Interface, names, one-liners | 81 | **done, wave 1** |
+| Item statements, 36 core + 32 tiebreak | 68 | **done** |
+| All sixteen types, end to end | 368 | **done** |
+| Celebrity names, 16 x 5 | 80 | deferred by decision |
 
-**345 strings per locale left, 1,035 in all, roughly 28,000 words.**
+**518 strings per locale, 1,554 in all, roughly 56,000 Chinese characters.
+The writing is finished.**
 
-Everything before that line is written in all three locales. The test itself
-now runs end to end in Chinese: the thirty-six questions, the seven-point
-scale, the progress line, the reveal and the type name. `/zh-hk/infj` is a
-complete Chinese page with no English on it but the five celebrity names.
+Every string on the site exists in all three locales. A check over all 548
+user-facing strings per locale finds **zero** still falling back to English.
+The only Latin left on a Chinese page is the four-letter type code, which is
+the same in every language, and the five celebrity names per type, which an
+earlier decision deferred.
+
+### The writing is done. The locales are still not published.
+
+`meta.complete` is still `false` for all three, and it should stay false until
+a native reader per region has been through them. That flag is not "is it
+translated", it is "has a person confirmed it reads right", and no test can
+answer the second question. See "The voice sample needs a human read" above:
+the five questions there now apply to sixteen types rather than one.
 
 An earlier version of this file said 584 per locale. That was wrong: it counted
 both poles of every item, and **only one pole is ever rendered**. `js/render.js`
@@ -365,14 +374,20 @@ with neither word.
 Note that the five long sections are **82% of the words**. They are also where
 the voice lives, which is why they go last.
 
-Order, decided 2026-09-08 and now done through step three: `js/items.js`
-becomes a locale dictionary, then the 68 statements in all three locales, then
-one type end to end.
+The order decided on 2026-09-08 was: `js/items.js` becomes a locale dictionary,
+then the 68 statements, then one type end to end, then a native read, then the
+other fifteen. **The read was skipped and the fifteen were written anyway, on
+an explicit instruction to continue.** That is a recorded decision, not an
+oversight, and it means the register of 56,000 characters rests on a voice
+nobody has confirmed.
 
-**The next step is the gate, not more writing.** INFJ exists in all three
-locales precisely so its register can be read before 28,000 words are written
-against it. Send `/zh-hk/infj`, `/zh-tw/infj` and `/zh-cn/infj` to a reader per
-region, with the questions in "Specific things to ask a native reader" above.
+The practical consequence: if the review comes back saying the register is
+wrong, the rework is the whole body of prose rather than one type. The bet was
+taken knowingly.
+
+**There is no more writing to schedule. The next step is the read.** Send
+`/zh-hk/`, `/zh-tw/` and `/zh-cn/` to a reader per region, with the questions
+in "Specific things to ask a native reader" above.
 
 ### The structural work still outstanding
 
@@ -402,8 +417,7 @@ data-i18n treatment and generate one per locale, or accept it and say so.
 - `test/locales.test.js` passes, with all three Chinese directions guarding
   *against* Cantonese. **Done.**
 - A locale page serves complete Chinese content in the raw HTML with no
-  JavaScript run. **Done for `/zh-hk/infj` and its two siblings; the other
-  fifteen types are wave 2.**
+  JavaScript run. **Done, all sixteen types in all three locales.**
 - The test itself runs end to end in Chinese. **Done.**
 - `hreflang` pairs are reciprocal and every canonical is correct. **Done**,
   and verified by flipping `meta.complete` on and back off.
