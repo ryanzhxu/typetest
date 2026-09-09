@@ -11,11 +11,14 @@
      English prose itself stays in js/types.js, which is what js/i18n.js
      merges a locale's overrides onto. */
   SG.i18n.register("en", {
-    meta: { complete: true },
+    meta: { complete: true, offered: true },
 
     brand: "Personality",
     nav: { sixteen: "See all sixteen" },
-    lang: { label: "Language" },
+    /* inProgress is never shown in English, which is always complete, but the
+       key has to exist here: this file is the inventory every other locale is
+       checked against. */
+    lang: { label: "Language", inProgress: " (in translation)" },
 
     intro: {
       eyebrow: "A four-letter personality test",

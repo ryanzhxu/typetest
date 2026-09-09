@@ -225,17 +225,22 @@ function galleryItems(locale) {
   }).join("");
 }
 
-/* The same anchors js/render.js builds, and only for locales that are
-   complete, so a reader is never handed a half-translated page from a
-   finished one. With one complete locale there is nothing to switch between
-   and the nav stays hidden. */
+/* The same anchors js/render.js builds, for every OFFERED locale rather than
+   every indexed one. A locale nobody can click to is a locale nobody can
+   review, and the review is what makes it complete. I18N.label marks an
+   unfinished one in its own language.
+
+   These links are not an SEO claim. The hreflang set in the head is, and that
+   still names only the indexed locales, so an unfinished page stays noindex
+   and unlisted while being one click away for a reader. */
 function langSwitchItems(locale, rest) {
-  if (INDEXED.length < 2) { return ""; }
-  return INDEXED.map(function (loc) {
+  const offered = I18N.offered();
+  if (offered.length < 2) { return ""; }
+  return offered.map(function (loc) {
     return '<a class="lang-link" href="' + I18N.pathFor(loc, rest) + '"' +
       ' hreflang="' + I18N.HTML_LANG[loc] + '" lang="' + I18N.HTML_LANG[loc] + '"' +
       (loc === locale ? ' aria-current="true"' : "") + ">" +
-      escapeText(I18N.ENDONYM[loc]) + "</a>";
+      escapeText(I18N.label(loc)) + "</a>";
   }).join("");
 }
 

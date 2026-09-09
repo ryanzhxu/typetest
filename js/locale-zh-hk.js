@@ -19,11 +19,11 @@
      NOT YET READ BY A NATIVE HONG KONG READER. meta.complete stays false
      until that happens and until the type prose is written. */
   SG.i18n.register("zh-hk", {
-    meta: { complete: false },
+    meta: { complete: false, offered: true },
 
     brand: "Personality",
     nav: { sixteen: "看十六型" },
-    lang: { label: "語言" },
+    lang: { label: "語言", inProgress: "（翻譯中）" },
 
     intro: {
       eyebrow: "四個字母的性格測驗",

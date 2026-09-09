@@ -43,8 +43,6 @@
   <header class="site-header">
     <p class="brand" data-i18n="brand">Personality</p>
     <button type="button" id="btn-nav-sixteen" class="link-btn" data-i18n="nav.sixteen">See all sixteen</button>
-    <nav id="lang-switch" class="lang-switch" aria-label="Language"
-         data-i18n-attr="aria-label:lang.label" hidden></nav>
   </header>
 
   <main>
@@ -164,6 +162,15 @@
       <ul id="gallery-grid" class="gallery-grid"></ul>
     </section>
   </main>
+
+  <!-- Below the content, not in the header. Four locale names, each carrying
+       its own note while it is being written, stood 156px tall at 320px and
+       pushed the question card off the bottom of the screen. This is a control
+       a reader uses once a session, and it belongs where the page has room. -->
+  <footer class="site-footer">
+    <nav id="lang-switch" class="lang-switch" aria-label="Language"
+         data-i18n-attr="aria-label:lang.label" hidden></nav>
+  </footer>
 
   <script defer src="js/ns.js"></script>
   <!-- i18n.js before every locale-*.js, which call SG.i18n.register as they

@@ -157,19 +157,23 @@ input:focus-visible,
 
 /* ---------- Layout ---------- */
 
-/* Real anchors. The control stays out of the way: a reader uses it once, and
-   never again in the session.
+/* Below the content, never in the header. A reader uses this once a session,
+   and four locale names each carrying a note while it is being written stood
+   156px tall at 320px, which pushed the question card off the bottom of the
+   screen. */
+.site-footer {
+  max-width: var(--max-width);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--border);
+}
 
-   flex-basis: 100% puts it on its own row under the brand. Four locale names,
-   a brand and a nav link do not fit across 320px, and without this the header
-   squeezed each name into a one-character-wide column and still overflowed by
-   15px. Its own row costs one line of height and fits at any width. */
 .lang-switch {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 0 var(--space-3);
   align-items: center;
-  flex-basis: 100%;
 }
 
 .lang-link {
@@ -196,7 +200,6 @@ input:focus-visible,
 
 .site-header {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);

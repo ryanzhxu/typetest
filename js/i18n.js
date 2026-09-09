@@ -121,16 +121,40 @@
     });
   }
 
-  /* A locale is complete once every string on the site exists in it. Until
-     then its pages are generated so they can be read, but they are kept out
-     of the sitemap and out of every hreflang set, and they carry noindex:
-     a half-translated page in the index is worse than no page at all. */
+  /* Two questions, not one, and they have different answers while a locale is
+     being written.
+
+     meta.complete asks whether a search engine should be told about it. Until
+     it is true the locale's pages carry noindex, stay out of sitemap.xml, and
+     appear in no hreflang set: a half-translated page in the index is worse
+     than no page at all.
+
+     meta.offered asks whether a reader should be able to click to it. That
+     can be true first, and for the review pass it has to be: the only way to
+     get a native read of a locale is for someone to be able to reach it. An
+     offered locale that is not complete is labelled as such in the switcher,
+     in its own language, so nobody arrives thinking it is finished. */
   function isComplete(locale) {
     return locale === DEFAULT || lookup(dicts[locale], "meta.complete") === true;
   }
 
   function completed() {
     return SUPPORTED.filter(isComplete);
+  }
+
+  function isOffered(locale) {
+    return locale === DEFAULT || lookup(dicts[locale], "meta.offered") === true;
+  }
+
+  function offered() {
+    return SUPPORTED.filter(isOffered);
+  }
+
+  /* What the switcher calls a locale: its own name, plus a note in its own
+     language when its copy is not finished. A reader looking for Chinese has
+     to be able to read the warning, so the note is never in English. */
+  function label(locale) {
+    return ENDONYM[locale] + (isComplete(locale) ? "" : t("lang.inProgress", locale));
   }
 
   /* ---- URLs ---- */
@@ -225,6 +249,9 @@
     sections: sections,
     isComplete: isComplete,
     completed: completed,
+    isOffered: isOffered,
+    offered: offered,
+    label: label,
     prefixFor: prefixFor,
     localeFromPath: localeFromPath,
     pathWithoutLocale: pathWithoutLocale,

@@ -27,6 +27,7 @@
     var el = {
       navSixteen: document.getElementById("btn-nav-sixteen"),
       langSwitch: document.getElementById("lang-switch"),
+      siteFooter: document.querySelector(".site-footer"),
 
       viewIntro: document.getElementById("view-intro"),
       viewQuestion: document.getElementById("view-question"),
@@ -197,13 +198,15 @@
        without running any JavaScript, and a plain click is still handled in
        place so a finished result survives a language change.
 
-       Only locales SG.i18n calls complete are offered, so a locale still
-       being written is reachable by typing its address but is never handed to
-       a reader from a finished page. With one complete locale there is
-       nothing to switch between and the whole control stays hidden. */
+       Every offered locale appears, finished or not, because a locale nobody
+       can click to is a locale nobody can review. SG.i18n.label marks an
+       unfinished one in its own language, so a reader is told what they are
+       getting before they choose it rather than after. Being offered is a
+       separate question from being complete: complete is what a search engine
+       is told, and it is still false for all three. */
     function buildLangSwitch() {
       el.langSwitch.innerHTML = "";
-      var offered = SG.i18n.completed();
+      var offered = SG.i18n.offered();
       el.langSwitch.hidden = offered.length < 2;
       if (el.langSwitch.hidden) { return; }
       var rest = SG.i18n.pathWithoutLocale(
@@ -215,7 +218,7 @@
         a.href = SG.i18n.pathFor(loc, rest);
         a.hreflang = SG.i18n.HTML_LANG[loc];
         a.lang = SG.i18n.HTML_LANG[loc];
-        a.textContent = SG.i18n.ENDONYM[loc];
+        a.textContent = SG.i18n.label(loc);
         if (loc === SG.i18n.current) { a.setAttribute("aria-current", "true"); }
         a.addEventListener("click", function (e) {
           if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
@@ -464,6 +467,10 @@
         SECTION_BY_VIEW[v].hidden = (v !== activeView);
       });
       el.navSixteen.hidden = !(activeView === "intro" || activeView === "type");
+      /* The question view is the one screen that is centred and thumb-critical,
+         and the only one where the footer's height would push the card off the
+         middle. Nothing else needs the switcher gone. */
+      el.siteFooter.hidden = (activeView === "question");
 
       if (activeView === "question") { renderQuestion(); }
       else if (activeView === "reveal") { renderReveal(); }

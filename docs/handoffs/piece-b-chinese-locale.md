@@ -134,20 +134,43 @@ three locales. They currently fall back to the English names.
   runtime that disagreed with the address bar would serve Chinese under an
   English URL.
 
-### The publish gate, `meta.complete`
+### The publish gate: two flags, not one
 
-One flag per locale file. While it is `false`:
+`meta.offered` and `meta.complete` answer two different questions, and while a
+locale is being written they have different answers.
 
-- the pages are still generated and readable at their real addresses, which
-  is how the copy gets reviewed,
-- they carry `<meta name="robots" content="noindex, follow">`,
+**`meta.offered`** asks whether a reader can click to it. It is `true` for all
+three Chinese locales. They appear in the language switcher, labelled in their
+own language with `lang.inProgress` (「（翻譯中）」, 「（翻译中）」), so nobody
+arrives thinking the copy is finished.
+
+This was `false` at first, folded into `meta.complete`, and that was wrong: a
+locale nobody can reach is a locale nobody can review, and the review is the
+thing that finishes it. The only way to show a reviewer the Chinese was to send
+them a bare URL.
+
+**`meta.complete`** asks whether a search engine should be told. It is `false`
+for all three. While it is:
+
+- the pages carry `<meta name="robots" content="noindex, follow">`,
 - they are absent from `sitemap.xml`,
-- no `hreflang` set names them,
-- and the language switcher does not offer them.
+- and no `hreflang` set names them.
 
-So today's deploy is byte-identical in behaviour for an English reader.
-**Flipping that one flag publishes a locale.** `test/locales.test.js` refuses
+The switcher's links are not an SEO claim; `<link rel="alternate" hreflang>` in
+the head is, and that still names only the complete locales.
+
+**Flipping `meta.complete` publishes a locale.** `test/locales.test.js` refuses
 to let it be `true` while any type prose or any item is still English.
+
+### Where the switcher lives
+
+In a `<footer>`, below the content, and hidden on the question view.
+
+It started in the header and could not stay there. Four locale names each
+carrying a note stood **156px tall at 320px**, which pushed the question card
+off the bottom of the screen and made the page scroll. The question view is the
+one screen that is deliberately centred and thumb-critical, so the footer is
+hidden there; `test/viewport.test.js` asserts both the fit and the hiding.
 
 ### The generator
 
@@ -302,6 +325,8 @@ data-i18n treatment and generate one per locale, or accept it and say so.
   and verified by flipping `meta.complete` on and back off.
 - Both locales switch without a page reload, and a finished result survives
   the switch. **Done.**
+- An unfinished locale is reachable from the switcher and labelled as such,
+  while staying out of the index. **Done.**
 - The share card wraps Chinese text correctly. **Not started.**
 - The social cards render in a CJK face. **Not started.**
 - A human who reads each region's Chinese has read every string. **Not

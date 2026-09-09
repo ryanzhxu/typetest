@@ -918,34 +918,54 @@ test("the test itself runs in Chinese, and the address never leaves the locale",
   }
 });
 
-test("an unfinished locale is never offered to a reader who is not looking for it",
+test("an unfinished locale is offered to a reader, labelled, and to nobody else",
   { skip: !chromium }, async () => {
-  /* The switcher, the sitemap and the hreflang sets are all driven by
-     meta.complete, so while the Chinese prose is still being written the
-     English site is exactly what it was. */
+  /* Two questions with different answers. A reader can click to a locale that
+     is still being written, because a locale nobody can reach is a locale
+     nobody can review, and the review is what finishes it. A search engine is
+     told nothing until meta.complete says so. */
   const I18N = globalThis.SG.i18n;
   const unfinished = I18N.SUPPORTED.filter((loc) => !I18N.isComplete(loc));
   const sitemap = await (await fetch(site.url + "/sitemap.xml")).text();
   const root = await (await fetch(site.url + "/")).text();
+
   unfinished.forEach((loc) => {
-    assert.ok(!sitemap.includes("/" + loc + "/"), "the sitemap offers the unfinished " + loc);
-    assert.ok(!root.includes('hreflang="' + I18N.HTML_LANG[loc] + '"'), "the root points at the unfinished " + loc);
-    assert.ok(!root.includes('href="/' + loc + '/"'), "the root links to the unfinished " + loc);
+    assert.ok(!sitemap.includes("/" + loc + "/"), "the sitemap lists the unfinished " + loc);
+    assert.ok(!root.includes('hreflang="' + I18N.HTML_LANG[loc] + '" href='),
+      "the root declares an hreflang alternate for the unfinished " + loc);
   });
 
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
+    const errors = trackErrors(page);
     await page.goto(site.url + "/");
-    if (unfinished.length === I18N.SUPPORTED.length - 1) {
-      assert.strictEqual(await page.locator("#lang-switch").isHidden(), true,
-        "with one finished locale there is nothing to switch between");
+
+    const links = await page.locator("#lang-switch a").evaluateAll(
+      (els) => els.map((e) => ({ text: e.textContent, href: e.getAttribute("href") })));
+    assert.deepStrictEqual(links.map((l) => l.href), I18N.offered().map((l) => I18N.pathFor(l, "/")),
+      "the switcher must offer every offered locale, in order");
+
+    /* Labelled in its own language: a reader looking for Chinese has to be
+       able to read the warning, so it is never in English. */
+    I18N.offered().forEach((loc, i) => {
+      assert.strictEqual(links[i].text, I18N.label(loc), loc + " is mislabelled");
+      const marked = links[i].text !== I18N.ENDONYM[loc];
+      assert.strictEqual(marked, !I18N.isComplete(loc),
+        loc + (I18N.isComplete(loc) ? " must not be marked unfinished" : " must be marked unfinished"));
+    });
+
+    /* Clicking one actually gets there, and it is still noindex when it does. */
+    const target = unfinished[0];
+    if (target) {
+      await page.click('#lang-switch a[href="' + I18N.pathFor(target, "/") + '"]');
+      await page.waitForFunction((p) => location.pathname === p, I18N.pathFor(target, "/"));
+      assert.strictEqual(await page.getAttribute("html", "lang"), I18N.HTML_LANG[target]);
+      const res = await fetch(site.url + I18N.pathFor(target, "/isfj"));
+      assert.ok((await res.text()).includes('name="robots" content="noindex, follow"'),
+        target + " is reachable but must still be noindex");
     }
-    /* Typing the address still works, which is how the copy gets reviewed. */
-    const res = await fetch(site.url + "/zh-hk/isfj");
-    assert.strictEqual(res.status, 200, "an unfinished locale must still be readable at its own address");
-    assert.ok((await res.text()).includes('name="robots" content="noindex, follow"'),
-      "an unfinished locale must be noindex");
+    assert.strictEqual(errors.length, 0, errors.join("\n"));
   } finally {
     await browser.close();
   }
