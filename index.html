@@ -41,8 +41,22 @@
 </head>
 <body>
   <header class="site-header">
-    <p class="brand" data-i18n="brand">Personality</p>
-    <button type="button" id="btn-nav-sixteen" class="link-btn" data-i18n="nav.sixteen">See all sixteen</button>
+    <a href="/" id="btn-brand" class="brand" data-i18n="brand">Personality</a>
+    <div class="header-actions">
+      <button type="button" id="btn-nav-sixteen" class="link-btn" data-i18n="nav.sixteen">See all sixteen</button>
+      <!-- One control, not a list: it shows the language you are reading (EN,
+           simplified 简 or traditional 繁) and a click rotates to the next of
+           the three. Traditional covers two locales, zh-hk and zh-tw, which
+           read as the same "繁" to the person clicking it; js/i18n.js's
+           rotation() picks zh-hk for that slot when both are offered. Visible
+           on every view, the question view included, so a reader mid-test can
+           duck into another language and rotate straight back without losing
+           an answer. A real anchor, not a button: without JavaScript it is
+           still a working link to the next locale, exactly like the gallery
+           cards below. -->
+      <a href="#" id="lang-switch" class="lang-switch" hreflang="" lang="" aria-label="Language"
+         data-i18n-attr="aria-label:lang.label" hidden></a>
+    </div>
   </header>
 
   <main>
@@ -173,15 +187,6 @@
       <ul id="gallery-grid" class="gallery-grid"></ul>
     </section>
   </main>
-
-  <!-- Below the content, not in the header. Four locale names, each carrying
-       its own note while it is being written, stood 156px tall at 320px and
-       pushed the question card off the bottom of the screen. This is a control
-       a reader uses once a session, and it belongs where the page has room. -->
-  <footer class="site-footer">
-    <nav id="lang-switch" class="lang-switch" aria-label="Language"
-         data-i18n-attr="aria-label:lang.label" hidden></nav>
-  </footer>
 
   <script defer src="js/ns.js"></script>
   <!-- i18n.js before every locale-*.js, which call SG.i18n.register as they

@@ -114,12 +114,27 @@ test("every supported locale has a BCP-47 tag and names itself in its own langua
     "two locales are offered under the same name");
 });
 
-test("the switcher shows a name and nothing else", () => {
-  /* The unfinished note moved onto the page it describes. Putting it back
-     beside each name takes the control from one row to three at 320px. */
-  I18N.SUPPORTED.forEach((loc) => {
-    assert.strictEqual(I18N.label(loc), I18N.NAME[loc], loc + " carries a suffix");
-  });
+test("the switcher names only three slots, Hong Kong and Taiwan sharing Traditional", () => {
+  assert.strictEqual(I18N.slotLabel("en"), "EN");
+  assert.strictEqual(I18N.slotLabel("zh-cn"), "简");
+  assert.strictEqual(I18N.slotLabel("zh-hk"), "繁");
+  assert.strictEqual(I18N.slotLabel("zh-tw"), I18N.slotLabel("zh-hk"), "zh-tw must read as the same slot as zh-hk");
+});
+
+test("the rotation visits English, Simplified and Hong Kong Traditional in order", () => {
+  assert.deepStrictEqual(I18N.rotation(), ["en", "zh-cn", "zh-hk"]);
+});
+
+test("the switcher always moves forward, and a full turn returns to where it started", () => {
+  assert.strictEqual(I18N.nextInSwitch("en"), "zh-cn");
+  assert.strictEqual(I18N.nextInSwitch("zh-cn"), "zh-hk");
+  /* Entering the Traditional slot fresh lands on Hong Kong, never Taiwan. */
+  assert.strictEqual(I18N.nextInSwitch("zh-hk"), "en");
+  /* A reader who arrived on the Taiwan page directly still only moves
+     forward: the button does not try to walk them back to Taiwan later. */
+  assert.strictEqual(I18N.nextInSwitch("zh-tw"), "en");
+  assert.strictEqual(I18N.nextInSwitch(I18N.nextInSwitch(I18N.nextInSwitch("en"))), "en",
+    "three clicks from English must return to English");
 });
 
 test("an unfinished locale has a notice, written in its own language", () => {

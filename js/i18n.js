@@ -172,12 +172,43 @@
     return SUPPORTED.filter(isOffered);
   }
 
-  /* The switcher shows the name and nothing else. An unfinished locale used to
-     carry its note here, and that note is what pushed the control to three
-     rows: the warning now lives on the unfinished page itself, where it is
-     read by the person who actually landed there rather than by everyone who
-     did not. */
-  function label(locale) { return NAME[locale]; }
+  /* The compact switcher is one control, not a list, and it only ever shows
+     one of three slots: English, Simplified or Traditional. Hong Kong and
+     Taiwan both read as "繁" to the person clicking it, so they share the
+     Traditional slot; SLOT_OF is what makes that grouping, everywhere a
+     locale needs to know which button it lives under. */
+  var SLOT_OF = { "en": "en", "zh-cn": "zh-cn", "zh-hk": "zh-hk", "zh-tw": "zh-hk" };
+  var SLOT_ORDER = ["en", "zh-cn", "zh-hk"];
+  var SLOT_LABEL = { "en": "EN", "zh-cn": "简", "zh-hk": "繁" };
+
+  /* What the button reads while a reader is on the given locale's page. */
+  function slotLabel(locale) { return SLOT_LABEL[SLOT_OF[locale] || locale]; }
+
+  /* One representative locale per slot that is actually offered, in rotation
+     order. Hong Kong stands for the Traditional slot whenever it is offered;
+     Taiwan only fills that slot when Hong Kong is not, which lets a locale
+     still being written keep the button working for review. */
+  function rotation() {
+    var off = offered();
+    return SLOT_ORDER.map(function (slot) {
+      if (off.indexOf(slot) !== -1) { return slot; }
+      if (slot === "zh-hk" && off.indexOf("zh-tw") !== -1) { return "zh-tw"; }
+      return null;
+    }).filter(function (loc) { return loc !== null; });
+  }
+
+  /* The next stop in the switcher after the given locale. Landing on zh-tw
+     directly, from a saved link or a search result, still advances to
+     English next: the button only ever moves forward through the three
+     slots, it never tries to walk back to whichever Traditional page a
+     reader arrived on. */
+  function nextInSwitch(locale) {
+    var seq = rotation();
+    if (seq.length === 0) { return locale; }
+    var here = SLOT_OF[locale] || locale;
+    var idx = seq.map(function (loc) { return SLOT_OF[loc] || loc; }).indexOf(here);
+    return seq[(idx + 1) % seq.length];
+  }
 
   /* ---- URLs ---- */
 
@@ -274,7 +305,9 @@
     completed: completed,
     isOffered: isOffered,
     offered: offered,
-    label: label,
+    slotLabel: slotLabel,
+    rotation: rotation,
+    nextInSwitch: nextInSwitch,
     prefixFor: prefixFor,
     localeFromPath: localeFromPath,
     pathWithoutLocale: pathWithoutLocale,
