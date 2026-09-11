@@ -925,7 +925,7 @@ test("the test itself runs in Chinese, and the address never leaves the locale",
   }
 });
 
-test("an unfinished locale is offered to a reader, labelled, and to nobody else",
+test("an unfinished locale is reachable through the switcher, and offered to nobody else",
   { skip: !chromium }, async () => {
   /* Two questions with different answers. A reader can click to a locale that
      is still being written, because a locale nobody can reach is a locale
@@ -948,18 +948,14 @@ test("an unfinished locale is offered to a reader, labelled, and to nobody else"
     const errors = trackErrors(page);
     await page.goto(site.url + "/");
 
-    const links = await page.locator("#lang-switch a").evaluateAll(
-      (els) => els.map((e) => ({ text: e.textContent, href: e.getAttribute("href") })));
-    assert.deepStrictEqual(links.map((l) => l.href), I18N.offered().map((l) => I18N.pathFor(l, "/")),
-      "the switcher must offer every offered locale, in order");
+    /* One control, not a list: it opens on the English slot and its href
+       points at the next stop in rotation, English -> Simplified -> Hong
+       Kong Traditional -> English. */
+    assert.strictEqual((await page.textContent("#lang-switch")).trim(), "EN");
+    assert.strictEqual(await page.getAttribute("#lang-switch", "href"), I18N.pathFor("zh-cn", "/"));
 
-    /* A name and nothing else. The unfinished note lives on the page it
-       describes, not beside every name in the control. */
-    I18N.offered().forEach((loc, i) => {
-      assert.strictEqual(links[i].text, I18N.NAME[loc], loc + " is mislabelled");
-    });
-
-    /* And that notice is on the unfinished page, in that page's language. */
+    /* And the unfinished notice is on the unfinished page itself, in that
+       page's language, not on the switcher. */
     const raw = await (await fetch(site.url + "/")).text();
     assert.ok(/<p id="locale-notice"[^>]*\shidden[^>]*>/.test(raw),
       "English is complete, so its pages must carry no notice");
@@ -971,16 +967,27 @@ test("an unfinished locale is offered to a reader, labelled, and to nobody else"
         loc + " hides the notice it needs to show");
     }
 
-    /* Clicking one actually gets there, and it is still noindex when it does. */
-    const target = unfinished[0];
-    if (target) {
-      await page.click('#lang-switch a[href="' + I18N.pathFor(target, "/") + '"]');
-      await page.waitForFunction((p) => location.pathname === p, I18N.pathFor(target, "/"));
-      assert.strictEqual(await page.getAttribute("html", "lang"), I18N.HTML_LANG[target]);
-      const res = await fetch(site.url + I18N.pathFor(target, "/isfj"));
-      assert.ok((await res.text()).includes('name="robots" content="noindex, follow"'),
-        target + " is reachable but must still be noindex");
-    }
+    /* Clicking rotates forward, and a still-unfinished locale stays reachable
+       through it and still noindex once there. */
+    await page.click("#lang-switch");
+    await page.waitForFunction((p) => location.pathname === p, I18N.pathFor("zh-cn", "/"));
+    assert.strictEqual(await page.getAttribute("html", "lang"), I18N.HTML_LANG["zh-cn"]);
+    assert.strictEqual((await page.textContent("#lang-switch")).trim(), "简");
+
+    await page.click("#lang-switch");
+    await page.waitForFunction((p) => location.pathname === p, I18N.pathFor("zh-hk", "/"));
+    assert.strictEqual(await page.getAttribute("html", "lang"), I18N.HTML_LANG["zh-hk"]);
+    assert.strictEqual((await page.textContent("#lang-switch")).trim(), "繁");
+    const res = await fetch(site.url + I18N.pathFor("zh-hk", "/isfj"));
+    const zhHkNoindex = (await res.text()).includes('name="robots" content="noindex, follow"');
+    assert.strictEqual(zhHkNoindex, unfinished.indexOf("zh-hk") !== -1,
+      "zh-hk's noindex state must match whether it is complete");
+
+    /* A full turn returns to English. */
+    await page.click("#lang-switch");
+    await page.waitForFunction((p) => location.pathname === p, "/");
+    assert.strictEqual((await page.textContent("#lang-switch")).trim(), "EN");
+
     assert.strictEqual(errors.length, 0, errors.join("\n"));
   } finally {
     await browser.close();

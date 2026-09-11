@@ -117,8 +117,11 @@ SIZES.forEach(function (size) {
 
    The tolerance is not zero and cannot be. The card is centred inside main, but
    main sits below a header and carries more padding at the bottom than the top,
-   so the two viewport-relative gaps differ by that much on purpose. What is
-   being caught here is 80 against 366, not 46 against 32. */
+   so the two viewport-relative gaps differ by that much on purpose. The header
+   itself also grew a little once the language switcher moved into it and
+   stayed visible through the question view: it is a 44px tap target now sitting
+   in every header, not only the ones outside the question. What is being
+   caught here is 80 against 366, not 222 against 270. */
 test("the question card sits in the middle of the screen, not under the header", { skip: !chromium }, async () => {
   const browser = await chromium.launch();
   try {
@@ -136,86 +139,63 @@ test("the question card sits in the middle of the screen, not under the header",
     });
 
     assert.ok(!m.scrolls, "centring must not introduce a scrollbar, and it did");
-    assert.ok(Math.abs(m.above - m.below) <= 32,
+    assert.ok(Math.abs(m.above - m.below) <= 50,
       "card is not centred: " + m.above + "px above, " + m.below + "px below");
   } finally {
     await browser.close();
   }
 });
 
-/* The switcher lives in the footer, and every offered locale appears in it
-   whether or not its copy is finished. It used to sit in the header, where
-   four locale names each carrying a note stood 156px tall at 320px, pushed the
-   question card off the bottom of the screen and made the page scroll.
-
-   Measure the real control rather than a synthetic one: it renders on every
-   view except the question. */
+/* The switcher lives in the header now, as a single control rather than a
+   list of names, which is what lets it stay put through the question view
+   without pushing the card down: one 44px button, not four locale names each
+   carrying a note, which used to stand 156px tall at 320px. */
 SIZES.forEach(function (size) {
   const w = size[0];
   const h = size[1];
-  test("the language switcher fits at " + w + "px with every locale offered", { skip: !chromium }, async () => {
+  test("the language switcher fits at " + w + "px", { skip: !chromium }, async () => {
     const browser = await chromium.launch();
     try {
       const page = await browser.newPage({ viewport: { width: w, height: h } });
       await page.goto(PAGE_URL);
 
       const m = await page.evaluate(() => {
-        const I18N = window.SG.i18n;
-        const nav = document.getElementById("lang-switch");
+        const el = document.getElementById("lang-switch");
         const de = document.documentElement;
+        const r = el.getBoundingClientRect();
+        /* The link has a 44px min-height, so its box says nothing about
+           wrapping. Measure the text itself with a range. */
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const boxes = range.getClientRects();
         return {
-          offered: I18N.offered().length,
-          shown: nav.querySelectorAll("a").length,
-          hidden: nav.hidden,
+          hidden: el.hidden,
+          text: el.textContent,
           over: de.scrollWidth - de.clientWidth,
-          rows: new Set(Array.prototype.map.call(nav.querySelectorAll("a"),
-            (a) => Math.round(a.getBoundingClientRect().top))).size,
-          names: Array.prototype.map.call(nav.querySelectorAll("a"), (a) => {
-            const r = a.getBoundingClientRect();
-            const line = parseFloat(getComputedStyle(a).fontSize) * 1.6;
-            /* The link has a 44px min-height, so its box says nothing about
-               wrapping. Measure the text itself with a range. */
-            const range = document.createRange();
-            range.selectNodeContents(a);
-            const boxes = range.getClientRects();
-            return { text: a.textContent, w: Math.round(r.width), h: Math.round(r.height),
-                     lines: boxes.length };
-          })
+          w: Math.round(r.width), h: Math.round(r.height),
+          lines: boxes.length
         };
       });
 
       assert.strictEqual(m.hidden, false, "the switcher must show on the intro");
-      assert.strictEqual(m.shown, m.offered, "every offered locale must appear");
       assert.strictEqual(m.over, 0, "the page overflows by " + m.over + "px");
-
-      /* One row, even at 320px. That is the whole point of naming the locales
-         by region: 繁體中文（香港） needed three rows and 香港 needs one.
-
-         Rows, not width against height. A two-character name is 35px wide in a
-         44px-tall target, so "wider than it is tall" fires on a name that is
-         perfectly fine. */
-      assert.strictEqual(m.rows, 1,
-        "the switcher takes " + m.rows + " rows: " + m.names.map((n) => n.text).join(" "));
-      /* A name wrapping inside its own link is taller than one line of it. */
-      m.names.forEach((n) => {
-        assert.ok(n.lines === 1,
-          "the locale name " + n.text + " wrapped onto " + n.lines + " lines");
-      });
+      assert.strictEqual(m.text, "EN", "the switcher must open on the English slot");
+      assert.strictEqual(m.lines, 1, "the switcher label wrapped onto " + m.lines + " lines");
     } finally {
       await browser.close();
     }
   });
 });
 
-test("the switcher is gone from the question view, where the card has to stay centred",
+test("the switcher stays visible during the question view, where a reader might want it most",
   { skip: !chromium }, async () => {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage({ viewport: { width: 320, height: 568 } });
     await page.goto(PAGE_URL);
     await page.click("#btn-start");
-    assert.strictEqual(await page.locator(".site-footer").isHidden(), true,
-      "the footer must not eat the question view's vertical space");
+    assert.strictEqual(await page.locator("#lang-switch").isHidden(), false,
+      "the switcher must stay reachable mid-question, so a reader can rotate and rotate back");
   } finally {
     await browser.close();
   }

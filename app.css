@@ -170,47 +170,6 @@ input:focus-visible,
   font-size: 0.9rem;
 }
 
-/* Below the content, never in the header. A reader uses this once a session,
-   and four locale names each carrying a note while it is being written stood
-   156px tall at 320px, which pushed the question card off the bottom of the
-   screen. */
-.site-footer {
-  max-width: var(--max-width);
-  width: 100%;
-  margin: 0 auto;
-  padding: var(--space-2) var(--space-4) var(--space-4);
-  border-top: 1px solid var(--border);
-}
-
-.lang-switch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-3);
-  align-items: center;
-}
-
-.lang-link {
-  color: var(--muted);
-  /* Or a narrow column wraps a name down the page one character at a time. */
-  white-space: nowrap;
-  font-size: 0.9rem;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  padding: 0.6rem 0.2rem;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.lang-link:hover { color: var(--text); }
-
-/* The language you are already reading is named but not offered. */
-.lang-link[aria-current="true"] {
-  color: var(--text);
-  text-decoration: none;
-  font-weight: 700;
-}
-
 .site-header {
   display: flex;
   align-items: center;
@@ -222,12 +181,39 @@ input:focus-visible,
   margin: 0 auto;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .brand {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 1.15rem;
   margin: 0;
+  color: inherit;
+  text-decoration: none;
 }
+
+/* One control, not a list: it names the language on screen (EN, 简 or 繁)
+   and a click rotates to the next of the three, in the header rather than
+   the footer so it is reachable, question view included, without scrolling
+   past the card. */
+.lang-switch {
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0.6rem 0.4rem;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lang-switch:hover { color: var(--text); }
 
 main {
   flex: 1;

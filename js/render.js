@@ -25,9 +25,9 @@
 
   function mount(flow) {
     var el = {
+      brand: document.getElementById("btn-brand"),
       navSixteen: document.getElementById("btn-nav-sixteen"),
       langSwitch: document.getElementById("lang-switch"),
-      siteFooter: document.querySelector(".site-footer"),
       localeNotice: document.getElementById("locale-notice"),
 
       viewIntro: document.getElementById("view-intro"),
@@ -194,40 +194,29 @@
 
     /* ---- the language switcher ---- */
 
-    /* Real anchors, filled here and by the deploy generator from the same
-       SG.i18n data, exactly as the gallery grid is: a crawler needs the links
-       without running any JavaScript, and a plain click is still handled in
-       place so a finished result survives a language change.
+    /* One real anchor, updated here and by the deploy generator from the same
+       SG.i18n data, exactly as the gallery grid is: without JavaScript it is
+       still a working link to the next locale in rotation, and a plain click
+       is handled in place so a finished result, or an in-progress answer,
+       survives a language change.
 
-       Every offered locale appears, finished or not, because a locale nobody
-       can click to is a locale nobody can review. SG.i18n.label marks an
-       unfinished one in its own language, so a reader is told what they are
-       getting before they choose it rather than after. Being offered is a
-       separate question from being complete: complete is what a search engine
-       is told, and it is still false for all three. */
+       Always visible, the question view included: a reader mid-test can duck
+       into another language and rotate straight back without losing an
+       answer. SG.i18n.rotation() is what limits this to locales actually
+       offered, still-being-written ones included, because a locale nobody can
+       click to is a locale nobody can review. */
     function buildLangSwitch() {
-      el.langSwitch.innerHTML = "";
-      var offered = SG.i18n.offered();
-      el.langSwitch.hidden = offered.length < 2;
+      var seq = SG.i18n.rotation();
+      el.langSwitch.hidden = seq.length < 2;
       if (el.langSwitch.hidden) { return; }
       var rest = SG.i18n.pathWithoutLocale(
         typeof location === "undefined" ? "/" : location.pathname
       );
-      offered.forEach(function (loc) {
-        var a = document.createElement("a");
-        a.className = "lang-link";
-        a.href = SG.i18n.pathFor(loc, rest);
-        a.hreflang = SG.i18n.HTML_LANG[loc];
-        a.lang = SG.i18n.HTML_LANG[loc];
-        a.textContent = SG.i18n.label(loc);
-        if (loc === SG.i18n.current) { a.setAttribute("aria-current", "true"); }
-        a.addEventListener("click", function (e) {
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
-          e.preventDefault();
-          switchLocale(loc);
-        });
-        el.langSwitch.appendChild(a);
-      });
+      var next = SG.i18n.nextInSwitch(SG.i18n.current);
+      el.langSwitch.href = SG.i18n.pathFor(next, rest);
+      el.langSwitch.hreflang = SG.i18n.HTML_LANG[next];
+      el.langSwitch.lang = SG.i18n.HTML_LANG[SG.i18n.current];
+      el.langSwitch.textContent = SG.i18n.slotLabel(SG.i18n.current);
     }
 
     /* Switching rewrites the page in place rather than reloading it, so a
@@ -462,17 +451,13 @@
 
     function render() {
       activeView = computeActiveView();
+      el.brand.href = urlFor("/");
       buildLangSwitch();
 
       VIEWS.forEach(function (v) {
         SECTION_BY_VIEW[v].hidden = (v !== activeView);
       });
       el.navSixteen.hidden = !(activeView === "intro" || activeView === "type");
-      /* The question view is the one screen that is centred and thumb-critical,
-         and the only one where extra chrome would push the card off the
-         middle. The reader has already passed the notice on the way in, and
-         the switcher is not something anyone needs mid-question. */
-      el.siteFooter.hidden = (activeView === "question");
       el.localeNotice.hidden =
         SG.i18n.isComplete(SG.i18n.current) || activeView === "question";
 
@@ -501,7 +486,32 @@
       focusView(activeView);
     }
 
+    /* Discards whatever run is in progress and lands on the intro, exactly as
+       "Start over" already does from a finished result. Shared so the brand
+       link in the header behaves the same way: there is no paused state to
+       come back to, since starting a run always begins a fresh queue anyway. */
+    function goHome() {
+      nav = null;
+      navCode = null;
+      pendingValue = null;
+      flow.reset();
+      setUrl(urlFor("/"), { view: "flow" }, true, rootTitle());
+      render();
+    }
+
     /* ---- wiring ---- */
+
+    el.brand.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
+      e.preventDefault();
+      goHome();
+    });
+
+    el.langSwitch.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) { return; }
+      e.preventDefault();
+      switchLocale(SG.i18n.nextInSwitch(SG.i18n.current));
+    });
 
     el.btnStart.addEventListener("click", function () {
       nav = null;
@@ -537,16 +547,11 @@
       render();
     });
 
-    el.btnRestart.addEventListener("click", function () {
-      nav = null;
-      pendingValue = null;
-      flow.reset();
-      /* The result's URL no longer describes what is on screen, and a reload
-         would hand back that type page instead of the test. replaceState, not
-         push, so Back does not walk into the result they just discarded. */
-      setUrl(urlFor("/"), { view: "flow" }, true, rootTitle());
-      render();
-    });
+    /* The result's URL no longer describes what is on screen, and a reload
+       would hand back that type page instead of the test. goHome replaces
+       rather than pushes, so Back does not walk into the result just
+       discarded. */
+    el.btnRestart.addEventListener("click", goHome);
 
     el.navSixteen.addEventListener("click", function () {
       nav = "gallery";

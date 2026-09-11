@@ -225,23 +225,38 @@ function galleryItems(locale) {
   }).join("");
 }
 
-/* The same anchors js/render.js builds, for every OFFERED locale rather than
-   every indexed one. A locale nobody can click to is a locale nobody can
-   review, and the review is what makes it complete. An unfinished locale is
-   marked by the notice on its own pages, not here.
+/* Replaces one attribute's value on the element carrying the given id. Like
+   fillById and setHidden, it throws rather than guessing: the attribute has
+   to already be on the tag as a placeholder, exactly as aria-label="Language"
+   already sits beside data-i18n-attr in index.html. */
+function setAttr(html, id, name, value) {
+  const openTag = new RegExp('<([a-z0-9]+)([^>]*\\sid="' + id + '"[^>]*)>');
+  return replaceOnce(html, openTag, (m, tag, attrs) => {
+    const attrRe = new RegExp('\\s' + name + '="[^"]*"');
+    if (!attrRe.test(attrs)) {
+      throw new Error('build-types: element with id="' + id + '" has no ' + name + ' attribute to set');
+    }
+    return "<" + tag + attrs.replace(attrRe, ' ' + name + '="' + escapeAttr(value) + '"') + ">";
+  }, 'element with id="' + id + '"');
+}
 
-   These links are not an SEO claim. The hreflang set in the head is, and that
-   still names only the indexed locales, so an unfinished page stays noindex
-   and unlisted while being one click away for a reader. */
-function langSwitchItems(locale, rest) {
-  const offered = I18N.offered();
-  if (offered.length < 2) { return ""; }
-  return offered.map(function (loc) {
-    return '<a class="lang-link" href="' + I18N.pathFor(loc, rest) + '"' +
-      ' hreflang="' + I18N.HTML_LANG[loc] + '" lang="' + I18N.HTML_LANG[loc] + '"' +
-      (loc === locale ? ' aria-current="true"' : "") + ">" +
-      escapeText(I18N.label(loc)) + "</a>";
-  }).join("");
+/* The same single anchor js/render.js builds: one control, not a list, named
+   for the slot the page's own locale sits in (EN, 简 or 繁) and linking
+   forward to the next slot in rotation. Without JavaScript it is still a
+   real link to that next locale, so a reader with no script and a crawler
+   with no JavaScript both reach it. This is not the SEO claim either way:
+   the hreflang set in the head is, and that still names only the indexed
+   locales, so an unfinished page stays noindex and unlisted while being one
+   click away for a reader. */
+function applyLangSwitch(html, locale, rest) {
+  const seq = I18N.rotation();
+  if (seq.length < 2) { return html; }
+  const next = I18N.nextInSwitch(locale);
+  let out = setHidden(html, "lang-switch", false);
+  out = setAttr(out, "lang-switch", "href", I18N.pathFor(next, rest));
+  out = setAttr(out, "lang-switch", "hreflang", I18N.HTML_LANG[next]);
+  out = setAttr(out, "lang-switch", "lang", I18N.HTML_LANG[locale]);
+  return fillById(out, "lang-switch", escapeText(I18N.slotLabel(locale)));
 }
 
 /* The same markup js/render.js builds, so the static page and the rendered one
@@ -327,10 +342,9 @@ function buildRoot(indexHtml, locale) {
   html = addCjkFont(html, loc);
   if (loc !== I18N.DEFAULT) { html = absolutiseAssets(html); }
   html = translateStatic(html, loc);
+  html = setAttr(html, "btn-brand", "href", I18N.pathFor(loc, "/"));
   html = fillById(html, "gallery-grid", galleryItems(loc));
-  const items = langSwitchItems(loc, "/");
-  if (items) { html = setHidden(html, "lang-switch", false); }
-  html = fillById(html, "lang-switch", items);
+  html = applyLangSwitch(html, loc, "/");
   html = setHidden(html, "locale-notice", I18N.isComplete(loc));
   return html;
 }
@@ -355,6 +369,7 @@ function buildPage(indexHtml, code, locale) {
   html = addCjkFont(html, loc);
   html = absolutiseAssets(html);
   html = translateStatic(html, loc);
+  html = setAttr(html, "btn-brand", "href", I18N.pathFor(loc, "/"));
 
   html = replaceOnce(html, /<body>/, () => '<body data-initial-type="' + code + '">', "<body> tag");
 
@@ -376,9 +391,7 @@ function buildPage(indexHtml, code, locale) {
   html = fillById(html, "type-often", listItems(type.often));
   html = fillById(html, "type-sections", sectionsHtml(type, loc));
   html = fillById(html, "gallery-grid", galleryItems(loc));
-  const items = langSwitchItems(loc, rest);
-  if (items) { html = setHidden(html, "lang-switch", false); }
-  html = fillById(html, "lang-switch", items);
+  html = applyLangSwitch(html, loc, rest);
   html = setHidden(html, "locale-notice", I18N.isComplete(loc));
 
   return html;
@@ -443,7 +456,7 @@ function build(outDir) {
 
 module.exports = {
   ORIGIN, LOCALES, INDEXED, escapeText, escapeAttr, titleFor, descriptionFor,
-  translateStatic, alternates, galleryItems, langSwitchItems, sectionsHtml,
+  translateStatic, alternates, galleryItems, applyLangSwitch, sectionsHtml,
   buildRoot, buildPage, buildSitemap, build
 };
 
