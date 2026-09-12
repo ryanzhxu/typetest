@@ -46,9 +46,9 @@ test("the progress line spells numerals in English and uses digits in Chinese", 
 
 test("a template keeps its pieces in the order its own language wants", () => {
   assert.strictEqual(I18N.format("seo.title", { name: "Deep Water", code: "INTJ" }, "en"),
-    "Deep Water (INTJ)");
+    "INTJ (Deep Water)");
   assert.strictEqual(I18N.format("seo.title", { name: "深潭", code: "INTJ" }, "zh-hk"),
-    "深潭（INTJ）", "Chinese uses full-width brackets, not a space and an ASCII pair");
+    "INTJ（深潭）", "Chinese uses full-width brackets, not a space and an ASCII pair");
 });
 
 test("an unfilled placeholder is left alone rather than blanked", () => {

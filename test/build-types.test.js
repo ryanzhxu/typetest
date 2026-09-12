@@ -24,7 +24,7 @@ function pageFor(code, locale) {
 }
 
 test("the title names the type and its code, and never the indicator", () => {
-  assert.strictEqual(gen.titleFor("INFJ", "en"), "The Quiet Read (INFJ)");
+  assert.strictEqual(gen.titleFor("INFJ", "en"), "INFJ (The Quiet Read)");
   LOCALES.forEach((loc) => {
     CODES.forEach((code) => {
       const title = gen.titleFor(code, loc);
@@ -211,8 +211,8 @@ test("each page carries its own copy in the static HTML, readable with no JavaSc
   CODES.forEach((code) => {
     const t = byCode[code];
     const html = pageFor(code);
-    assert.ok(html.includes(">" + code + "</p>"), code + " code text");
-    assert.ok(html.includes(">" + t.name + "</h2>"), code + " name text");
+    assert.ok(html.includes(">" + code + "</h2>"), code + " code text");
+    assert.ok(html.includes(">" + t.name + "</p>"), code + " name text");
     assert.ok(html.includes(t.opening), code + " opening paragraph");
     assert.ok(html.includes("You are at your best " + t.best), code + " best paragraph");
     assert.ok(html.includes("You come undone " + t.undone), code + " undone paragraph");
@@ -228,7 +228,7 @@ test("a Chinese page carries its Chinese chrome and its Chinese name in the raw 
   ["zh-cn", "zh-tw", "zh-hk"].forEach((loc) => {
     const html = pageFor("ISFJ", loc);
     const t = I18N.type("ISFJ", loc);
-    assert.ok(html.includes(">" + t.name + "</h2>"), loc + " lost its type name");
+    assert.ok(html.includes(">" + t.name + "</p>"), loc + " lost its type name");
     assert.ok(html.includes(">" + I18N.t("type.oftenLabel", loc) + "<"), loc + " lost the celebrity label");
     assert.ok(html.includes(">" + I18N.t("intro.start", loc) + "<"), loc + " lost the start button");
     assert.ok(html.includes(I18N.t("type.asterisk", loc)), loc + " lost the asterisk paragraph");
@@ -293,7 +293,7 @@ test("attribute and text values are escaped", () => {
   }
   const head = html.split("<!-- BUILD:HEAD:START -->")[1].split("<!-- BUILD:HEAD:END -->")[0];
   assert.ok(
-    head.includes(String.raw`content="A &amp; B &quot;C&quot; &lt;D&gt; (INFJ)"`),
+    head.includes(String.raw`content="INFJ (A &amp; B &quot;C&quot; &lt;D&gt;)"`),
     "og:title and twitter:title must be fully escaped inside their attributes"
   );
   assert.ok(head.includes("Ampersand &amp; angle &lt; bracket."), "the description must be escaped");

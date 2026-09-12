@@ -89,7 +89,9 @@
 :root[lang|="zh"] h2,
 :root[lang|="zh"] h3,
 :root[lang|="zh"] .statement,
-:root[lang|="zh"] .gallery-name {
+:root[lang|="zh"] .gallery-name,
+:root[lang|="zh"] .type-name,
+:root[lang|="zh"] .reveal-name {
   line-break: strict;
 }
 
@@ -521,14 +523,16 @@ main {
 
 .reveal-code {
   font-family: var(--font-display);
-  font-size: 1rem;
-  letter-spacing: 0.35em;
-  color: var(--muted);
+  font-size: clamp(2rem, 5vw, 2.6rem);
+  letter-spacing: 0.12em;
+  color: var(--text);
   text-transform: uppercase;
 }
 
 .reveal-name {
-  font-size: clamp(2rem, 5vw, 2.6rem);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--muted);
 }
 
 .reveal-line {
@@ -585,14 +589,16 @@ main {
 
 .type-code {
   font-family: var(--font-display);
-  letter-spacing: 0.35em;
-  color: var(--muted);
+  font-size: clamp(2rem, 5vw, 2.6rem);
+  letter-spacing: 0.12em;
+  color: var(--text);
   text-transform: uppercase;
-  font-size: 1rem;
 }
 
 .type-name {
-  font-size: clamp(2rem, 5vw, 2.6rem);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--muted);
 }
 
 .type-paragraph {
@@ -736,15 +742,16 @@ main {
 
 .gallery-code {
   font-family: var(--font-display);
-  letter-spacing: 0.2em;
-  color: var(--muted);
-  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  font-size: 1.15rem;
   text-transform: uppercase;
 }
 
 .gallery-name {
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 .gallery-line {

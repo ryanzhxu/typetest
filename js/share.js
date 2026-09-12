@@ -115,16 +115,16 @@
     var type = SG.types.byCode[result.code];
     var cursorY = 300;
 
-    ctx.font = "44px " + headlineFamily;
-    ctx.fillStyle = PEACH;
-    drawSpaced(ctx, result.code, CENTER_X, cursorY, 22);
-    cursorY += 150;
-
-    var nameSize = fitHeadlineSize(ctx, type.name, MAX_W, headlineFamily, 104, 56);
-    ctx.font = nameSize + "px " + headlineFamily;
+    var codeSize = fitHeadlineSize(ctx, result.code, MAX_W, headlineFamily, 104, 56);
+    ctx.font = codeSize + "px " + headlineFamily;
     ctx.fillStyle = TEXT;
+    drawSpaced(ctx, result.code, CENTER_X, cursorY, Math.round(codeSize * 0.18));
+    cursorY += Math.round(codeSize * 0.55) + 80;
+
+    ctx.font = "36px " + headlineFamily;
+    ctx.fillStyle = PEACH;
     ctx.fillText(type.name, CENTER_X, cursorY);
-    cursorY += Math.round(nameSize * 0.55) + 80;
+    cursorY += 150;
 
     ctx.font = "38px " + bodyFamily;
     ctx.fillStyle = TEXT_MUTED;

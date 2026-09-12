@@ -96,7 +96,7 @@
     seo: {
       rootTitle: "Personality",
       rootDescription: "A four-letter test that tells you which second type is living in your result.",
-      title: "{name} ({code})",
+      title: "{code} ({name})",
       description: "{line} What {code} looks like up close, and the second type that lives in it."
     },
 

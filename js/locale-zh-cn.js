@@ -87,7 +87,7 @@
     seo: {
       rootTitle: "性格测试",
       rootDescription: "找到最像你的性格类型。",
-      title: "{name}（{code}）",
+      title: "{code}（{name}）",
       description: "{line} {code} 近看是什么样子，以及住在它里面的第二类型。"
     },
 
