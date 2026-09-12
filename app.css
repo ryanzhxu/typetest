@@ -213,6 +213,9 @@ input:focus-visible,
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Without this a phone paints a grey rectangle over the tap, the same
+     highlight .dot suppresses below. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .lang-switch:hover { color: var(--text); }
@@ -301,6 +304,7 @@ main {
   min-height: 44px;
   text-decoration: underline;
   text-underline-offset: 3px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .link-btn:hover { color: var(--text); }
@@ -383,6 +387,11 @@ main {
   font-family: var(--font-display);
   font-size: 1.35rem;
   line-height: 1.35;
+  /* Reserves two lines up front, so a short statement does not leave the
+     card shorter than the next, longer one: without this the card's height
+     changed from question to question. A statement that runs past two lines
+     still grows the card; that is rare enough to leave unhandled. */
+  min-height: 2.7em;
 }
 
 .dot-scale {
@@ -400,8 +409,14 @@ main {
   font-size: 0.85rem;
 }
 
+/* row-reverse, not a DOM change: js/render.js still builds dot 1 (Strongly
+   agree) first and dot 7 (Strongly disagree) last, in that order, because
+   js/score.js, the keyboard shortcuts and the "Back restores the dot" test
+   all key off that build order. Reversing it here just lands dot 7 on the
+   left and dot 1 on the right, to match the Disagree/Agree anchors above. */
 .dot-row {
   display: flex;
+  flex-direction: row-reverse;
   align-items: center;
 }
 
