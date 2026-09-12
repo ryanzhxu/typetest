@@ -23,7 +23,7 @@
     { id: "EI4", axis: "EI", show: "b", a: "Silence in a conversation needs filling.", b: "Silence in a conversation is fine." },
     { id: "EI5", axis: "EI", show: "a", a: "I will say the half-formed idea.", b: "I will wait until it is finished." },
     { id: "EI6", axis: "EI", show: "b", a: "My weekend was good if it was full.", b: "My weekend was good if it was quiet." },
-    { id: "EI7", axis: "EI", show: "a", a: "I answer the phone.", b: "I let it ring and text back." },
+    { id: "EI7", axis: "EI", show: "a", a: "I pick up without checking who it is.", b: "I check who it is before I decide." },
     { id: "EI8", axis: "EI", show: "b", a: "Group chats are where I am funniest.", b: "One to one is where I am funniest." },
     { id: "EI9", axis: "EI", show: "a", a: "I meet new people easily and often.", b: "I keep a small circle on purpose." },
 
@@ -49,7 +49,7 @@
 
     { id: "JP1", axis: "JP", show: "a", a: "Once it is decided, it is decided.", b: "Leave it open a while longer." },
     { id: "JP2", axis: "JP", show: "a", a: "A plan is a comfort.", b: "A plan is a cage." },
-    { id: "JP3", axis: "JP", show: "b", a: "I finish early.", b: "I finish at the last possible moment." },
+    { id: "JP3", axis: "JP", show: "b", a: "I finish early.", b: "I finish right up against the deadline." },
     { id: "JP4", axis: "JP", show: "b", a: "Unmade decisions bother me.", b: "Unmade decisions keep options alive." },
     { id: "JP5", axis: "JP", show: "a", a: "I like knowing what Saturday holds.", b: "I like Saturday deciding itself." },
     { id: "JP6", axis: "JP", show: "b", a: "A list is how I hold the day.", b: "A list is how I lose the day." },
