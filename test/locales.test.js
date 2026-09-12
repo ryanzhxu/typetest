@@ -149,14 +149,6 @@ test("every item has a stable id, and a locale keys its statements on it", () =>
   });
 });
 
-test("the brand is the same Latin word in every locale", () => {
-  /* A product name is a proper noun. Translating it would give the site four
-     names and no brand. */
-  I18N.SUPPORTED.forEach((loc) => {
-    assert.strictEqual(I18N.t("brand", loc), "Personality", loc + " renamed the product");
-  });
-});
-
 test("no locale is a copy of another", () => {
   /* Two Traditional locales that agreed on everything would mean one of them
      was converted from the other, which is the one thing the whole hand-

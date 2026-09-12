@@ -18,16 +18,15 @@
   SG.i18n.register("zh-cn", {
     meta: { complete: true, offered: true },
 
-    brand: "Personality",
+    brand: "性格测试",
     nav: { sixteen: "看全部十六型" },
     lang: { label: "语言", unfinished: "本页翻译尚未完成。" },
 
     intro: {
       eyebrow: "四个字母的性格测试",
-      title: "Personality",
+      title: "性格测试",
       lede: "三十六道题，七级评分。如果有两种类型对你来说真的很接近，我们会直接说出来，而不是猜一个给你。",
-      start: "开始",
-      note: "无需账号。不保存。不发送到任何地方。"
+      start: "开始"
     },
 
     question: {
@@ -86,8 +85,8 @@
     },
 
     seo: {
-      rootTitle: "Personality 性格测试",
-      rootDescription: "一个四字母性格测试，会告诉你结果里还住着哪一个第二类型。",
+      rootTitle: "性格测试",
+      rootDescription: "找到最像你的性格类型。",
       title: "{name}（{code}）",
       description: "{line} {code} 近看是什么样子，以及住在它里面的第二类型。"
     },

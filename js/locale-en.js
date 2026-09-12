@@ -24,8 +24,7 @@
       eyebrow: "A four-letter personality test",
       title: "Personality",
       lede: "Thirty-six questions on a seven-point scale. If two types are genuinely close for you, we say so instead of guessing.",
-      start: "Start",
-      note: "No account. Nothing saved. Nothing sent anywhere."
+      start: "Start"
     },
 
     question: {

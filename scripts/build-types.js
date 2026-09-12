@@ -170,7 +170,7 @@ function headBlock(locale, rest, title, desc, image) {
   ]).concat(alternates(rest)).concat([
     '  <meta property="og:type" content="website">',
     '  <meta property="og:url" content="' + url + '">',
-    '  <meta property="og:site_name" content="Personality">',
+    '  <meta property="og:site_name" content="' + escapeAttr(I18N.t("brand", locale)) + '">',
     '  <meta property="og:locale" content="' + I18N.HTML_LANG[locale].replace(/-/g, "_") + '">',
     '  <meta property="og:title" content="' + escapeAttr(title) + '">',
     '  <meta property="og:description" content="' + escapeAttr(desc) + '">',
