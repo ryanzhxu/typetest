@@ -211,8 +211,8 @@ test("each page carries its own copy in the static HTML, readable with no JavaSc
   CODES.forEach((code) => {
     const t = byCode[code];
     const html = pageFor(code);
-    assert.ok(html.includes(">" + code + "</p>"), code + " code text");
-    assert.ok(html.includes(">" + t.name + "</h2>"), code + " name text");
+    assert.ok(html.includes(">" + code + "</h2>"), code + " code text");
+    assert.ok(html.includes(">" + t.name + "</p>"), code + " name text");
     assert.ok(html.includes(t.opening), code + " opening paragraph");
     assert.ok(html.includes("You are at your best " + t.best), code + " best paragraph");
     assert.ok(html.includes("You come undone " + t.undone), code + " undone paragraph");
@@ -228,7 +228,7 @@ test("a Chinese page carries its Chinese chrome and its Chinese name in the raw 
   ["zh-cn", "zh-tw", "zh-hk"].forEach((loc) => {
     const html = pageFor("ISFJ", loc);
     const t = I18N.type("ISFJ", loc);
-    assert.ok(html.includes(">" + t.name + "</h2>"), loc + " lost its type name");
+    assert.ok(html.includes(">" + t.name + "</p>"), loc + " lost its type name");
     assert.ok(html.includes(">" + I18N.t("type.oftenLabel", loc) + "<"), loc + " lost the celebrity label");
     assert.ok(html.includes(">" + I18N.t("intro.start", loc) + "<"), loc + " lost the start button");
     assert.ok(html.includes(I18N.t("type.asterisk", loc)), loc + " lost the asterisk paragraph");

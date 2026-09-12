@@ -375,7 +375,7 @@ test("gallery cards are real links, and clicking one changes the URL without los
     /* This one IS a view change under the reader, so focus must move. */
     assert.deepStrictEqual(
       await page.evaluate(() => [document.activeElement.tagName, document.activeElement.id]),
-      ["H2", "type-name"],
+      ["H2", "type-code"],
       "a card click must move focus to the new heading"
     );
 
