@@ -18,7 +18,7 @@
 
   var core = [
     { id: "EI1", axis: "EI", show: "a", a: "Talking is how I work a thing out.", b: "I work it out, then I talk." },
-    { id: "EI2", axis: "EI", show: "b", a: "A room full of strangers is an opportunity.", b: "A room full of strangers is a countdown." },
+    { id: "EI2", axis: "EI", show: "b", a: "A room full of strangers is an opportunity.", b: "A room full of strangers is a countdown to the door." },
     { id: "EI3", axis: "EI", show: "a", a: "I recharge around people.", b: "I recharge away from people." },
     { id: "EI4", axis: "EI", show: "b", a: "Silence in a conversation needs filling.", b: "Silence in a conversation is fine." },
     { id: "EI5", axis: "EI", show: "a", a: "I will say the half-formed idea.", b: "I will wait until it is finished." },
@@ -34,7 +34,7 @@
     { id: "SN5", axis: "SN", show: "b", a: "I remember what happened.", b: "I remember what it meant." },
     { id: "SN6", axis: "SN", show: "b", a: "A proven method is a good method.", b: "A proven method is a starting point." },
     { id: "SN7", axis: "SN", show: "a", a: "I describe things literally.", b: "I describe things by comparison." },
-    { id: "SN8", axis: "SN", show: "b", a: "The present is plenty to think about.", b: "I am usually somewhere in next year." },
+    { id: "SN8", axis: "SN", show: "b", a: "The present is plenty to think about.", b: "I am usually somewhere in the next year." },
     { id: "SN9", axis: "SN", show: "a", a: "Instructions are for following.", b: "Instructions are for skimming." },
 
     { id: "TF1", axis: "TF", show: "a", a: "Decide it on the merits.", b: "Decide it on who it lands on." },
@@ -47,7 +47,7 @@
     { id: "TF8", axis: "TF", show: "b", a: "I notice the flaw in the plan.", b: "I notice who is uncomfortable with the plan." },
     { id: "TF9", axis: "TF", show: "a", a: "Logic settles it.", b: "Something still has to feel right." },
 
-    { id: "JP1", axis: "JP", show: "a", a: "Settle it now and move on.", b: "Leave it open a while longer." },
+    { id: "JP1", axis: "JP", show: "a", a: "Once it is decided, it is decided.", b: "Leave it open a while longer." },
     { id: "JP2", axis: "JP", show: "a", a: "A plan is a comfort.", b: "A plan is a cage." },
     { id: "JP3", axis: "JP", show: "b", a: "I finish early.", b: "I finish at the last possible moment." },
     { id: "JP4", axis: "JP", show: "b", a: "Unmade decisions bother me.", b: "Unmade decisions keep options alive." },
