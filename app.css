@@ -329,11 +329,6 @@ main {
   max-width: 34rem;
 }
 
-.intro-note {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
 /* ---------- Question view ---------- */
 
 .question-card {
