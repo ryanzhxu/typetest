@@ -109,7 +109,7 @@
        two ever disagree. */
     items: {
       EI1: "Talking is how I work a thing out.",
-      EI2: "A room full of strangers is a countdown.",
+      EI2: "A room full of strangers is a countdown to the door.",
       EI3: "I recharge around people.",
       EI4: "Silence in a conversation is fine.",
       EI5: "I will say the half-formed idea.",
@@ -124,7 +124,7 @@
       SN5: "I remember what it meant.",
       SN6: "A proven method is a starting point.",
       SN7: "I describe things literally.",
-      SN8: "I am usually somewhere in next year.",
+      SN8: "I am usually somewhere in the next year.",
       SN9: "Instructions are for following.",
       TF1: "Decide it on the merits.",
       TF2: "Being liked matters more than being right.",
@@ -135,7 +135,7 @@
       TF7: "Criticism is useful.",
       TF8: "I notice who is uncomfortable with the plan.",
       TF9: "Logic settles it.",
-      JP1: "Settle it now and move on.",
+      JP1: "Once it is decided, it is decided.",
       JP2: "A plan is a comfort.",
       JP3: "I finish at the last possible moment.",
       JP4: "Unmade decisions keep options alive.",
