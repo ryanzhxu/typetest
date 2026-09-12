@@ -10,6 +10,18 @@
     var result = null;
     var tiebroken = {};    /* axis -> true once its tiebreak has been run */
 
+    /* Fisher-Yates, in place. Each user gets their own order because this
+       runs fresh on every start()/settle(), not once at load. */
+    function shuffle(list) {
+      for (var i = list.length - 1; i > 0; i -= 1) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = list[i];
+        list[i] = list[j];
+        list[j] = tmp;
+      }
+      return list;
+    }
+
     function resetResponses() {
       responses = {};
       SG.items.AXES.forEach(function (a) { responses[a] = []; });
@@ -78,7 +90,7 @@
       result: function () { return result; },
       start: function () {
         resetResponses();
-        queue = SG.items.core.slice();
+        queue = shuffle(SG.items.core.slice());
         index = 0;
         result = null;
         tiebroken = {};
@@ -109,7 +121,7 @@
         var axis = result.closeAxis;
         if (tiebroken[axis]) { return; }
         tiebroken[axis] = true;
-        queue = SG.items.tiebreak.filter(function (it) { return it.axis === axis; });
+        queue = shuffle(SG.items.tiebreak.filter(function (it) { return it.axis === axis; }));
         index = 0;
         view = "question";
       },
