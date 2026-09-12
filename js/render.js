@@ -247,7 +247,13 @@
        than written into index.html so the generator's page contract stays
        about the type view, and so the values and their labels cannot drift
        apart. Each carries the feedback string as its accessible name, which
-       is the same string the old slider put in aria-valuetext. */
+       is the same string the old slider put in aria-valuetext.
+
+       Built 1 to 7 in DOM order, same as ever: js/score.js, the keyboard
+       shortcuts and dotInputs indexing all key off that order. The row now
+       reads Strongly disagree through Strongly agree on screen, but that
+       flip lives in CSS alone (.dot-row is row-reverse), so nothing here has
+       to change to match the anchors in index.html. */
     var dotInputs = [];
     for (var v = 1; v <= 7; v += 1) {
       (function (value) {
