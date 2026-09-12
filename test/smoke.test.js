@@ -259,9 +259,9 @@ test("the served site answers the status codes the search engines will see", asy
 test("the raw HTML of /enfj carries ENFJ's head and copy, with no JavaScript run", async () => {
   const html = await (await fetch(site.url + "/enfj")).text();
 
-  assert.ok(html.includes("<title>Warm Front (ENFJ)</title>"), "title");
+  assert.ok(html.includes("<title>ENFJ (Warm Front)</title>"), "title");
   assert.ok(html.includes('<link rel="canonical" href="https://personality.ryanxu.dev/enfj">'), "canonical");
-  assert.ok(html.includes('<meta property="og:title" content="Warm Front (ENFJ)">'), "og:title");
+  assert.ok(html.includes('<meta property="og:title" content="ENFJ (Warm Front)">'), "og:title");
   assert.ok(html.includes("The room gets easier when they walk in."), "the line");
   assert.ok(html.includes("Hosts without trying"), "a chip");
   assert.ok(html.includes("Oprah Winfrey"), "a name");
@@ -471,19 +471,19 @@ test("the tab title travels with the URL", { skip: !chromium }, async () => {
        string. A URL that says /infj under a tab that says ENFJ is wrong on
        all three surfaces at once. */
     await page.goto(site.url + "/enfj");
-    assert.strictEqual(await page.title(), "Warm Front (ENFJ)", "a deep-linked page names its own type");
+    assert.strictEqual(await page.title(), "ENFJ (Warm Front)", "a deep-linked page names its own type");
 
     await page.click("#btn-nav-sixteen");
     await page.waitForSelector("#view-sixteen:not([hidden])");
     await page.click('#gallery-grid a[href="/infj"]');
     await page.waitForSelector("#view-type:not([hidden])");
     assert.strictEqual(new URL(page.url()).pathname, "/infj");
-    assert.strictEqual(await page.title(), "The Quiet Read (INFJ)", "the title must follow a gallery click");
+    assert.strictEqual(await page.title(), "INFJ (The Quiet Read)", "the title must follow a gallery click");
 
     await page.goBack();
     await page.waitForSelector("#view-type:not([hidden])");
     assert.strictEqual(new URL(page.url()).pathname, "/enfj");
-    assert.strictEqual(await page.title(), "Warm Front (ENFJ)", "Back must restore the title, not only the view");
+    assert.strictEqual(await page.title(), "ENFJ (Warm Front)", "Back must restore the title, not only the view");
 
     await page.click("#btn-take-test");
     await page.waitForSelector("#view-question:not([hidden])");
@@ -499,7 +499,7 @@ test("the tab title travels with the URL", { skip: !chromium }, async () => {
     const name = await page.textContent("#type-name");
     assert.strictEqual(new URL(page.url()).pathname, "/" + code.toLowerCase());
     assert.strictEqual(
-      await page.title(), name + " (" + code + ")",
+      await page.title(), code + " (" + name + ")",
       "a finished result must name its own type, not the site"
     );
     assert.ok(!/myers|briggs|mbti/i.test(await page.title()), "the indicator reached a title");
@@ -534,7 +534,7 @@ test("returning to the intro puts the address bar back at the root", { skip: !ch
        is the sequence: deep link /enfj, take the test, answer a few, press
        browser Back to return to /enfj, then See all sixteen, then Back. The
        flow is on the question view, so the guard blocks the rewrite and the
-       question view is left sitting under /enfj titled "Warm Front (ENFJ)".
+       question view is left sitting under /enfj titled "ENFJ (Warm Front)".
        Measured, not reasoned about.
 
        That mismatch is what btnBackFlow did before this piece touched it, so

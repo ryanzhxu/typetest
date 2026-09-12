@@ -24,7 +24,7 @@ function pageFor(code, locale) {
 }
 
 test("the title names the type and its code, and never the indicator", () => {
-  assert.strictEqual(gen.titleFor("INFJ", "en"), "The Quiet Read (INFJ)");
+  assert.strictEqual(gen.titleFor("INFJ", "en"), "INFJ (The Quiet Read)");
   LOCALES.forEach((loc) => {
     CODES.forEach((code) => {
       const title = gen.titleFor(code, loc);
@@ -293,7 +293,7 @@ test("attribute and text values are escaped", () => {
   }
   const head = html.split("<!-- BUILD:HEAD:START -->")[1].split("<!-- BUILD:HEAD:END -->")[0];
   assert.ok(
-    head.includes(String.raw`content="A &amp; B &quot;C&quot; &lt;D&gt; (INFJ)"`),
+    head.includes(String.raw`content="INFJ (A &amp; B &quot;C&quot; &lt;D&gt;)"`),
     "og:title and twitter:title must be fully escaped inside their attributes"
   );
   assert.ok(head.includes("Ampersand &amp; angle &lt; bracket."), "the description must be escaped");

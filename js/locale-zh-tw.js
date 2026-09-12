@@ -89,7 +89,7 @@
     seo: {
       rootTitle: "Personality 性格測驗",
       rootDescription: "一個四字母性格測驗，會告訴你結果裡還住著哪一個第二型。",
-      title: "{name}（{code}）",
+      title: "{code}（{name}）",
       description: "{line} {code} 近看是什麼樣子，以及住在它裡面的第二型。"
     },
 
