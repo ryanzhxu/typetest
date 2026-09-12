@@ -128,6 +128,13 @@ types. Must fail if a type is missing or a meta tag is left generic.
 term. Description from the type's `line`. **The indicator is never named in any
 of these** — parent spec §3, which binds `og:title` specifically.
 
+**Amended 2026-09-12.** Title format is now `INFJ (The Quiet Read)`, code
+leading, not the reverse. The code, not the invented name, is the only
+unowned and non-trademarked element of a four-letter test, so it leads
+every title, the on-screen reveal and type views, and the share card. See
+`docs/superpowers/plans/2026-09-11-type-code-prominence.md` for the full
+reasoning.
+
 **A3.3 — Deep-link resolution.** `render.js` reads `data-initial-type` and opens
 the type view. Landing on `/enfj` must show ENFJ immediately, with no flash of
 the intro screen, and the "take the test" path must still work from there.
